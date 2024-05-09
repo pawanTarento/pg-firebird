@@ -51,4 +51,4 @@ UserModel.init({
 
 module.exports = UserModel;
 
-UserModel.sync({ force: false });
+// UserModel.sync({ force: false });

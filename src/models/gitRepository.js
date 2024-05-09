@@ -35,7 +35,7 @@ GitRepository.init({
         allowNull: true
     },
     gr_client_secret: {
-        type: DataTypes.STRING(150),
+        type: DataTypes.STRING(300),
         allowNull: true
     },
     gr_client_id: {

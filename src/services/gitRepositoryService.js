@@ -1,11 +1,13 @@
 const GitRepository = require("../models/gitRepository");
-const { gitMasterColumns } = require("../constants/tableColumns")
+const { gitMasterColumns } = require("../constants/tableColumns");
+const { encryptData, decryptData } = require("../util/decode");
+const _ = require("lodash");
 
 const getAllGitRecords = async (req, res) => {
 
     let response = await GitRepository.findAll( {
         where: {},
-        attributes: gitMasterColumns,
+        attributes: _.without(gitMasterColumns, 'gr_client_secret', 'gr_iv_salt')
     })
 
     if (!response) {
@@ -24,6 +26,7 @@ const getGitRecordById = async (req, res, grId) => {
     if (!response) {
         return res.status(400).json({ message: "No data for given gr_id"})
     }
+    response.gr_client_secret = decryptData( response.gr_client_secret);
     return res.status(200).json({ data: response});
 
 }
@@ -40,7 +43,7 @@ const removeGitRecord = async (req, res, grId) => {
 
 const addGitRecord = async ( req, res) => {
     try {
-        const { 
+        let { 
           gr_name,
           gr_description,
           gr_environment_id,
@@ -54,6 +57,9 @@ const addGitRecord = async ( req, res) => {
           created_by,
           modified_by
         } = req.body;
+
+        let encryptedClientSecret = encryptData(gr_client_secret);
+
         const gitRecord = await GitRepository.create({ 
           gr_name,
           gr_description,
@@ -61,7 +67,7 @@ const addGitRecord = async ( req, res) => {
           gr_host_url,
           gr_auth_method_id,
           gr_api_token,
-          gr_client_secret,
+          gr_client_secret: encryptedClientSecret,
           gr_client_id,
           gr_iv_salt,
           gr_state_id,
@@ -83,7 +89,7 @@ const updateGitRecord = async (req, res) => {
         if (!gitRecord) {
           res.status(404).json({ error: 'Git Record not found...' });
         } else {
-          const {        
+          let {        
             gr_name,
             gr_description,
             gr_environment_id,
@@ -96,6 +102,10 @@ const updateGitRecord = async (req, res) => {
             gr_state_id,
             created_by,
             modified_by }= req.body;
+
+          // not using gr_client_secret for now, instead using it from our .env
+         // later on, use gr_client_secret
+         let encryptedGrClientSecret = encryptData (gr_client_secret);
           await gitRecord.update({ 
             gr_name,
             gr_description,
@@ -103,7 +113,7 @@ const updateGitRecord = async (req, res) => {
             gr_host_url,
             gr_auth_method_id,
             gr_api_token,
-            gr_client_secret,
+            gr_client_secret: encryptedGrClientSecret,
             gr_client_id,
             gr_iv_salt,
             gr_state_id,

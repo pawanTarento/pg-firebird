@@ -60,5 +60,6 @@ const tenantTableColumns = [
 module.exports = {
     userMasterColumns,
     gitMasterColumns,
-    ufmProfileColumns
+    ufmProfileColumns,
+    tenantTableColumns
 }

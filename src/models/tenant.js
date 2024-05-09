@@ -31,7 +31,7 @@ Tenant.init({
         allowNull: true
     },
     tenant_host_password: {
-        type: DataTypes.STRING(150),
+        type: DataTypes.STRING(300),
         allowNull: true
     },
     tenant_iv_salt: {

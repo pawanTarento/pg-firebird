@@ -1,4 +1,5 @@
-const tenantService = require("../services/tenantService");
+// For Basic Crud operations for Tenant Table
+const tenantService = require("../services/tenantMasterService");
 
 // done
 const getAllTenantsList = async (req, res) => {

@@ -1,6 +1,6 @@
 const axios = require("axios");
 
-
+// Later on -> rename this function
 async function getOAuth(inputCredentials) {
     const tokenEndpoint = inputCredentials.tokenEndpoint;
     const clientId = inputCredentials.clientId; 
@@ -69,5 +69,6 @@ async function getOAuthGit () {
 module.exports = {
     getOAuthTenantOne,
     getOAuthTenantTwo,
-    getOAuthGit
+    getOAuthGit,
+    getOAuth
 }

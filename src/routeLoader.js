@@ -10,6 +10,7 @@ const router = express.Router();
 router.use("/integrationPackages", require("./routes/integrationPackagesRouter"));
 router.use("/gitRepository", require("./routes/gitRepositoryRouter"));
 router.use("/gitActivity", require("./routes/gitActivityRouter"));
+router.use("/tenantAction", require("./routes/tenantActionRouter"));
 router.use("/tenant", require("./routes/tenantMasterRouter"));
 router.use("/ufm", require("./routes/ufmProfileRouter"));
 router.use("/user", require("./routes/userMasterRouter"));

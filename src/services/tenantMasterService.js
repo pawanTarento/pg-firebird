@@ -1,10 +1,13 @@
 const Tenant = require("../models/tenant");
-const {tenantTableColumns} = require("../constants/tableColumns")
+const {tenantTableColumns} = require("../constants/tableColumns");
+const { encryptData, decryptData } = require("../util/decode");
+const _ = require("lodash");
+
 const getAllTenants = async (req, res) => {
 
     let response = await Tenant.findAll( {
         where: {},
-        attributes: tenantTableColumns
+        attributes: _.without(tenantTableColumns, 'tenant_iv_salt', 'tenant_host_password')
     })
 
     if (!response) {
@@ -23,7 +26,9 @@ const getTenantById = async (req, res, tenantId) => {
     if ( !response) {
         return res.status(400).json({ message: "No data for given id"})
     }
-    return res.status(200).json({ data: response});
+    // Decrypt the tenant_host_password
+    response.tenant_host_password = decryptData( response.tenant_host_password);
+    return res.status(200).json({ data: response });
 
 }
 
@@ -39,7 +44,7 @@ const removeTenant = async (req, res, tenantId) => {
 
 const addTenant = async ( req, res) => {
     try {
-        const { 
+        let { 
           tenant_id,
           tenant_name,
           tenant_description,
@@ -55,6 +60,11 @@ const addTenant = async ( req, res) => {
           created_by,
           modified_by,
          } = req.body;
+
+         // not using tenant_iv_salt for now, instead using it from our .env
+         // later on, use tenant_iv_salt
+         let encryptedTenantHostPassword = encryptData (tenant_host_password);
+
         const user = await Tenant.create({ 
           tenant_id,
           tenant_name,
@@ -62,7 +72,7 @@ const addTenant = async ( req, res) => {
           tenant_region_id,
           tenant_host_url,
           tenant_host_username,
-          tenant_host_password,
+          tenant_host_password: encryptedTenantHostPassword,
           tenant_iv_salt,
           tenant_host_test_status_id,
           tenant_host_test_status_on,
@@ -86,7 +96,7 @@ const updateTenantDetails = async (req, res) => {
         if (!tenant) {
           res.status(404).json({ error: 'Tenant not found...' });
         } else {
-          const { 
+          let { 
             tenant_name,
             tenant_description,
             tenant_region_id,
@@ -100,6 +110,11 @@ const updateTenantDetails = async (req, res) => {
             tenant_state_id,
             created_by,
             modified_by, } = req.body;
+
+         // not using tenant_iv_salt for now, instead using it from our .env
+         // later on, use tenant_iv_salt
+         let encryptedTenantHostPassword = encryptData (tenant_host_password);
+
           await tenant.update({ 
             tenant_id,
             tenant_name,
@@ -107,7 +122,7 @@ const updateTenantDetails = async (req, res) => {
             tenant_region_id,
             tenant_host_url,
             tenant_host_username,
-            tenant_host_password,
+            tenant_host_password: encryptedTenantHostPassword,
             tenant_iv_salt,
             tenant_host_test_status_id,
             tenant_host_test_status_on,
