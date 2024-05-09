@@ -1,6 +1,7 @@
 const { HttpStatusCode } = require("axios");
 const Tenant = require("../models/tenant");
 const { getOAuth } = require("../util/auth");
+const { decryptData } = require("../util/decode");
 
 const checkTenantConnection = async (req, res, tenantId) => {
     const response = await Tenant.findByPk( tenantId );
@@ -14,7 +15,7 @@ const checkTenantConnection = async (req, res, tenantId) => {
     let inputCredentials = {
          tokenEndpoint : response.tenant_host_url,
          clientId : response.tenant_host_username, 
-         clientSecret : response.tenant_host_password, // this is to be again decrypted
+         clientSecret : decryptData(response.tenant_host_password), 
     }
 
     try {
