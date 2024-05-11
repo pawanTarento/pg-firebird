@@ -5,21 +5,37 @@ const sequelize = require('../dbconfig/config');
 class UserModel extends Model {}
 
 UserModel.init({
-    Id: {
+    user_id: {
         type: DataTypes.INTEGER,
         primaryKey: true,
         autoIncrement: true
     },
-    userId: {
-        type: DataTypes.STRING,
+    email_id: {
+        type: DataTypes.STRING(250),
         allowNull: true
     },
-    externalId: {
-        type: DataTypes.STRING,
+    firstname: {
+        type: DataTypes.STRING(150),
         allowNull: true
     },
-    email: {
-        type: DataTypes.STRING,
+    lastname: {
+        type: DataTypes.STRING(100),
+        allowNull: true
+    },
+    display_name: {
+        type: DataTypes.STRING(250),
+        allowNull: true
+    },
+    external_id: {
+        type: DataTypes.STRING(250),
+        allowNull: true
+    },
+    is_active: {
+        type:DataTypes.BOOLEAN,
+        allowNull: true
+    },
+    additional_param1: {
+        type: DataTypes.STRING(250),
         allowNull: true
     },
     role: {
@@ -29,26 +45,14 @@ UserModel.init({
     isAdmin: {
         type: DataTypes.BOOLEAN,
         allowNull: true
-    },
-    firstLogin: {
-        type: DataTypes.DATE,
-        allowNull: true
-    },
-    lastLogin: {
-        type: DataTypes.DATE,
-        allowNull: true
-    },
-    timeZone: { // doubt in this 
-        type: DataTypes.STRING,
-        allowNull: true
     }
 }, {
     sequelize,
     modelName: 'UserMaster',
-    tableName: 'UserMaster',
+    tableName: 'user_master',
     timestamps: true // If you want Sequelize to not automatically manage createdAt and updatedAt columns
 });
 
 module.exports = UserModel;
 
-// UserModel.sync({ force: false });
+UserModel.sync({ force: false });

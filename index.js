@@ -6,6 +6,7 @@ const routeLoader = require("./src/routeLoader");
 const Tenant = require("./src/models/tenant");
 const GitRepository = require("./src/models/gitRepository");
 const UFMProfile = require("./src/models/ufmProfile");
+const Taxonomy = require("./src/models/taxonomy");
 
 const app = express();
 

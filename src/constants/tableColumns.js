@@ -55,11 +55,32 @@ const tenantTableColumns = [
     "tenant_state_id",
     "created_by",
     "modified_by"
+];
+
+const taxonomyTableColumns =[ 
+    "taxonomy_id",
+    "asset_id",
+    "asset_url",
+    "group_name",
+    "taxonomy_code",
+    "taxonomy_name",
+    "taxonomy_value",
+    "taxonomy_numeric",
+    "taxonomy_type",
+    "taxonomy_category",
+    "additional_param_1",
+    "additional_param_2",
+    "is_active",
+    "is_deleted",
+    "priority_order",
+    "parent_id",
+    "created_by"
 ]
 
 module.exports = {
     userMasterColumns,
     gitMasterColumns,
     ufmProfileColumns,
-    tenantTableColumns
+    tenantTableColumns,
+    taxonomyTableColumns
 }
