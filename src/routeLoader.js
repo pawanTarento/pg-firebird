@@ -14,7 +14,7 @@ router.use("/tenantAction", require("./routes/tenantActionRouter"));
 router.use("/tenant", require("./routes/tenantMasterRouter"));
 router.use("/taxonomy", require("./routes/taxonomyRouter"));
 router.use("/ufm", require("./routes/ufmProfileRouter"));
-router.use("/user", require("./routes/userMasterRouter"));
+router.use("/userMaster", require("./routes/userMasterRouter"));
 
 
 module.exports = router;

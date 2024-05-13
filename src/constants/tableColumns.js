@@ -1,15 +1,14 @@
 const userMasterColumns =[
-    "Id", 
-    "userId", 
-    "externalId", 
-    "email", 
-    "role", 
-    "isAdmin",
-    "firstLogin", 
-    "lastLogin", 
-    "timeZone", 
-    "createdAt", 
-    "updatedAt" 
+    "user_id",
+    "email_id",
+    "firstname",
+    "lastname",
+    "display_name",
+    "external_id",
+    "is_active",
+    "additional_param1",
+    "role",
+    "isAdmin"
 ];
 
 const gitMasterColumns = [

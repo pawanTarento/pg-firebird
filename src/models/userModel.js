@@ -50,9 +50,11 @@ UserModel.init({
     sequelize,
     modelName: 'UserMaster',
     tableName: 'user_master',
+    createdAt: 'created_on', 
+    updatedAt: 'modified_on', 
     timestamps: true // If you want Sequelize to not automatically manage createdAt and updatedAt columns
 });
 
 module.exports = UserModel;
 
-UserModel.sync({ force: false });
+// UserModel.sync({ force: false });

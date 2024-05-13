@@ -32,7 +32,7 @@ const getUserRecordByUserId = async (req, res, userId) => {
 
 const getUserRecordById = async (req, res, id) => {
     let response = await UserModel.findOne( {
-        where: { Id: id },
+        where: { user_id: id },
         attributes: userMasterColumns
     })
 
@@ -56,18 +56,28 @@ const removeUserRecord = async (req, res, id) => {
 const addUserRecord = async ( req, res) => {
     try {
         const { 
-            userId,
-            externalId, 
-            email, 
-            role, 
-            isAdmin, 
-            firstLogin, 
-            lastLogin,  
-            timeZone 
+            email_id,
+            firstname,
+            lastname,
+            display_name,
+            external_id,
+            is_active,
+            additional_param1,
+            role,
+            isAdmin
         } = req.body;
 
         const userRecord = await UserModel.create({ 
-            userId ,externalId, email, role, isAdmin, firstLogin, lastLogin,  timeZone
+        
+            email_id,
+            firstname,
+            lastname,
+            display_name,
+            external_id,
+            is_active,
+            additional_param1,
+            role,
+            isAdmin
         });
         res.status(201).json(userRecord);
       } catch (error) {
@@ -77,15 +87,35 @@ const addUserRecord = async ( req, res) => {
 }
 
 const updateUserRecord = async (req, res) => {
-    const { id } = req.body;
-    console.log('ID: ', id)
+    const { user_id } = req.body;
+    console.log('ID: ', user_id)
     try {
-        const userRecord = await UserModel.findByPk(id);
+        const userRecord = await UserModel.findByPk(user_id);
         if (!userRecord) {
           res.status(404).json({ error: 'User Record not found...' });
         } else {
-          const { userId ,externalId, email, role, isAdmin, firstLogin, lastLogin,  timeZone }= req.body;
-          await userRecord.update({ userId ,externalId, email, role, isAdmin, firstLogin, lastLogin, timeZone });
+          const {    
+            user_id,
+            email_id,
+            firstname,
+            lastname,
+            display_name,
+            external_id,
+            is_active,
+            additional_param1,
+            role,
+            isAdmin }= req.body;
+          await userRecord.update({    
+            user_id,
+            email_id,
+            firstname,
+            lastname,
+            display_name,
+            external_id,
+            is_active,
+            additional_param1,
+            role,
+            isAdmin });
           res.json(userRecord);
         }
       } catch (error) {
