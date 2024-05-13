@@ -1,6 +1,6 @@
 const GitRepository = require("../models/gitRepository");
 const { gitMasterColumns } = require("../constants/tableColumns");
-const { encryptData, decryptData } = require("../util/decode");
+const { encryptData, decryptData, getEncryptionIV } = require("../util/decode");
 const _ = require("lodash");
 
 const getAllGitRecords = async (req, res) => {
@@ -26,7 +26,7 @@ const getGitRecordById = async (req, res, grId) => {
     if (!response) {
         return res.status(400).json({ message: "No data for given gr_id"})
     }
-    response.gr_client_secret = decryptData( response.gr_client_secret);
+    response.gr_client_secret = decryptData( response.gr_client_secret, getEncryptionIV(response.gr_iv_salt));
     return res.status(200).json({ data: response});
 
 }
@@ -58,7 +58,12 @@ const addGitRecord = async ( req, res) => {
           modified_by
         } = req.body;
 
-        let encryptedClientSecret = encryptData(gr_client_secret);
+        if (!gr_iv_salt){
+          console.log('\nIV salt not found for git repository');
+          return res.status(400).json({ message: "Not found git repo IV salt"})
+        }
+
+        let encryptedClientSecret = encryptData(gr_client_secret, getEncryptionIV(gr_iv_salt));
 
         const gitRecord = await GitRepository.create({ 
           gr_name,
@@ -101,11 +106,12 @@ const updateGitRecord = async (req, res) => {
             gr_iv_salt,
             gr_state_id,
             created_by,
-            modified_by }= req.body;
+            modified_by 
+          } = req.body;
 
           // not using gr_client_secret for now, instead using it from our .env
          // later on, use gr_client_secret
-         let encryptedGrClientSecret = encryptData (gr_client_secret);
+         let encryptedGrClientSecret = encryptData (gr_client_secret, getEncryptionIV(gr_iv_salt));
           await gitRecord.update({ 
             gr_name,
             gr_description,

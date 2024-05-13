@@ -13,20 +13,28 @@ const key = crypto.createHash('sha512')
   .digest('hex')
   .substring(0, 32);
 
-const encryptionIV = crypto.createHash('sha512')
-  .update(secret_iv)
+// const encryptionIV = crypto.createHash('sha512')
+//   .update(secret_iv)
+//   .digest('hex')
+//   .substring(0, 16);
+
+const getEncryptionIV = (SECRET_IV) => {
+  const encryptionIV = crypto.createHash('sha512')
+  .update(SECRET_IV)
   .digest('hex')
   .substring(0, 16);
 
+  return encryptionIV;
+}
 
-function encryptData(data) {
+function encryptData(data, encryptionIV) {
 const cipher = crypto.createCipheriv(ecnryption_method, key, encryptionIV)
 return Buffer.from(
     cipher.update(data, 'utf8', 'hex') + cipher.final('hex')
 ).toString('base64') // Encrypts data and converts to hex and base64
 } 
 
-function decryptData(encryptedData) {
+function decryptData(encryptedData, encryptionIV) {
 const buff = Buffer.from(encryptedData, 'base64')
 const decipher = crypto.createDecipheriv(ecnryption_method, key, encryptionIV)
 return (
@@ -37,5 +45,6 @@ return (
 
 module.exports = {
     encryptData,
-    decryptData 
+    decryptData,
+    getEncryptionIV
 }
