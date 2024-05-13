@@ -7,9 +7,6 @@ router.route('/')
     .post(userMasterController.addUserMasterRecord)
     .put( userMasterController.updateUserMasterRecord)
 
-router.route("/info/:userId") // Resolve this
-    .get( userMasterController.getUserMasterRecordByUserId);
-
 router.route("/:id") 
     .get( userMasterController.getUserMasterRecordById)
     .delete(userMasterController.removeUserMasterRecord);
