@@ -1,6 +1,6 @@
 const Tenant = require("../models/tenant");
 const {tenantTableColumns} = require("../constants/tableColumns");
-const { encryptData, decryptData } = require("../util/decode");
+const { encryptData, decryptData, getEncryptionIV } = require("../util/decode");
 const _ = require("lodash");
 
 const getAllTenants = async (req, res) => {
@@ -27,7 +27,7 @@ const getTenantById = async (req, res, tenantId) => {
         return res.status(400).json({ message: "No data for given id"})
     }
     // Decrypt the tenant_host_password
-    response.tenant_host_password = decryptData( response.tenant_host_password);
+    response.tenant_host_password = decryptData( response.tenant_host_password, getEncryptionIV(response.tenant_iv_salt));
     return res.status(200).json({ data: response });
 
 }
@@ -45,7 +45,6 @@ const removeTenant = async (req, res, tenantId) => {
 const addTenant = async ( req, res) => {
     try {
         let { 
-          tenant_id,
           tenant_name,
           tenant_description,
           tenant_region_id,
@@ -63,10 +62,9 @@ const addTenant = async ( req, res) => {
 
          // not using tenant_iv_salt for now, instead using it from our .env
          // later on, use tenant_iv_salt
-         let encryptedTenantHostPassword = encryptData (tenant_host_password);
+         let encryptedTenantHostPassword = encryptData (tenant_host_password, getEncryptionIV(tenant_iv_salt));
 
         const user = await Tenant.create({ 
-          tenant_id,
           tenant_name,
           tenant_description,
           tenant_region_id,
@@ -109,14 +107,14 @@ const updateTenantDetails = async (req, res) => {
             tenant_environment_id,
             tenant_state_id,
             created_by,
-            modified_by, } = req.body;
+            modified_by
+          } = req.body;
 
          // not using tenant_iv_salt for now, instead using it from our .env
          // later on, use tenant_iv_salt
-         let encryptedTenantHostPassword = encryptData (tenant_host_password);
+         let encryptedTenantHostPassword = encryptData (tenant_host_password, getEncryptionIV(tenant_iv_salt));
 
           await tenant.update({ 
-            tenant_id,
             tenant_name,
             tenant_description,
             tenant_region_id,
