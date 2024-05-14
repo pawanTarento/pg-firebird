@@ -13,6 +13,7 @@ const userMasterColumns =[
 
 const gitMasterColumns = [
     "gr_id",
+    "gr_owner_name",
     "gr_name",
     "gr_description",
     "gr_environment_id",

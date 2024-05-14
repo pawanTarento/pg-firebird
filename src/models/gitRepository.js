@@ -10,6 +10,10 @@ GitRepository.init({
         primaryKey: true,
         autoIncrement: true
     },
+    gr_owner_name: {
+        type: DataTypes.STRING(200),
+        allowNull: true,
+    },
     gr_name: {
         type: DataTypes.STRING(150),
         allowNull: true
@@ -69,4 +73,4 @@ GitRepository.init({
 
 module.exports = GitRepository;
 
-// GitRepository.sync({ force: false });
+GitRepository.sync({ force: false });

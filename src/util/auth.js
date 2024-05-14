@@ -47,28 +47,31 @@ async function getOAuthTenantTwo() {
     return bearerToken;
 }
 
-async function getOAuthGit () {
-    const clientID = 'Ov23lidbUWSZkpycKvV2';
-    const clientSecret = '40d6010c2fece6b821b0af849673826c6d75f998';
-    // http://localhost:2400/github/callback?code=8e77f68c2c213421f530
-    let response = await axios({
-        method: 'post',
-        url: `https://github.com/login/oauth/access_token?client_id=${clientID}&client_secret=${clientSecret}&code=8e77f68c2c213421f530`,
-        // Set the content type header, so that we get the response in JSON
-        headers: {
-             accept: 'application/json'
-        }
-      })
+// DEPRECATED
+// async function getOAuthGit (inputCredentials) {
+//     let config = {
+//         method: 'get',
+//         url: inputCredentials.tokenEndpoint,
+//         // Set the content type header, so that we get the response in JSON
+//         headers: {
+//              accept: 'application/json',
+//              Authorization: `Bearer ${inputCredentials.clientSecret}`
+//         }
+//       }
+//       console.log('Config: ', config)
 
-    if (response) {
-        console.log('Acess token',response.data.access_token );
-        return response.data.access_token
-    }
-}
+//     let response = await axios(config)
+
+//     if (response) {
+//         console.log('Response: ',typeof response );
+//         console.log('Response object: ',response );
+//         return response
+//     }
+// }
 
 module.exports = {
     getOAuthTenantOne,
     getOAuthTenantTwo,
-    getOAuthGit,
+    // getOAuthGit,
     getOAuth
 }

@@ -9,7 +9,7 @@ const router = express.Router();
 // Routes -> the sequence of routes is important
 router.use("/integrationPackages", require("./routes/integrationPackagesRouter"));
 router.use("/gitRepository", require("./routes/gitRepositoryRouter"));
-router.use("/gitActivity", require("./routes/gitActivityRouter"));
+router.use("/gitAction", require("./routes/gitActionRouter"));
 router.use("/tenantAction", require("./routes/tenantActionRouter"));
 router.use("/tenant", require("./routes/tenantMasterRouter"));
 router.use("/taxonomy", require("./routes/taxonomyRouter"));

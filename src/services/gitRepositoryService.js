@@ -45,6 +45,7 @@ const addGitRecord = async ( req, res) => {
     try {
         let { 
           gr_name,
+          gr_owner_name,
           gr_description,
           gr_environment_id,
           gr_host_url,
@@ -67,6 +68,7 @@ const addGitRecord = async ( req, res) => {
 
         const gitRecord = await GitRepository.create({ 
           gr_name,
+          gr_owner_name,
           gr_description,
           gr_environment_id,
           gr_host_url,
@@ -96,6 +98,7 @@ const updateGitRecord = async (req, res) => {
         } else {
           let {        
             gr_name,
+            gr_owner_name,
             gr_description,
             gr_environment_id,
             gr_host_url,
@@ -114,6 +117,7 @@ const updateGitRecord = async (req, res) => {
          let encryptedGrClientSecret = encryptData (gr_client_secret, getEncryptionIV(gr_iv_salt));
           await gitRecord.update({ 
             gr_name,
+            gr_owner_name,
             gr_description,
             gr_environment_id,
             gr_host_url,
