@@ -36,6 +36,35 @@ const axiosInstance = (connect) => {
       return instance;
 }
 
+const axiosInstanceNew = (connect) => {
+  let headerObject = {};
+  if (!connect.headers) {
+      console.log('\nNo headers provided')
+      headerObject = {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${connect.token}`
+      }
+  }
+
+  const config = {
+      baseURL: connect.url,
+      headers: headerObject
+  }
+
+  if (connect.hasOwnProperty('responseType')) {
+      console.log('responseType')
+      config.responseType = connect.responseType;
+  }
+
+  console.log('CONFIG: ', { ...config, headers: config.headers.Accept })
+  const instance = axios.create(config);
+
+  return instance;
+}
+
+
   module.exports = {
-    axiosInstance
+    axiosInstance,
+    axiosInstanceNew
   }
