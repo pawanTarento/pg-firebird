@@ -160,116 +160,84 @@ async function downloadIntegrationPackage (req,res, integrationPackageId) {
 async function getPackagesWithArtifactsInfo (req, res ) {
     const  {tenantOneId, tenantTwoId } = req.params;
     
+    const [tenantOneResponse, tenantTwoResponse] = await Promise.all([
+        Tenant.findByPk(tenantOneId),
+        Tenant.findByPk(tenantTwoId)
+    ]);
 
-    let tenantOneResponse = await Tenant.findByPk(tenantOneId);
-    let tenantTwoResponse = await Tenant.findByPk(tenantTwoId);
-
-    // Get Bearer token -> Tenant One
-    let authCredentialsTenantOne = {
-        tokenEndpoint : tenantOneResponse.tenant_host_token_api,
-        clientId :  tenantOneResponse.tenant_host_username,
-        clientSecret : decryptData(
-                        tenantOneResponse.tenant_host_password,
-                        getEncryptionIV ( tenantOneResponse.tenant_iv_salt) 
-                    ),
+    async function getBearerToken(tenantResponse) {
+        const authCredentials = {
+            tokenEndpoint: tenantResponse.tenant_host_token_api,
+            clientId: tenantResponse.tenant_host_username,
+            clientSecret: decryptData(
+                tenantResponse.tenant_host_password,
+                getEncryptionIV(tenantResponse.tenant_iv_salt)
+            )
+        };
+        return getOAuth(authCredentials);
     }
-    let tenantOneBearerToken = await getOAuth(authCredentialsTenantOne);
 
-    // Get Bearer Token -> Tenant Two
-    let authCredentialsTenantTwo = {
-        tokenEndpoint : tenantTwoResponse.tenant_host_token_api,
-        clientId :  tenantTwoResponse.tenant_host_username,
-        clientSecret : decryptData(
-                        tenantTwoResponse.tenant_host_password,
-                        getEncryptionIV ( tenantTwoResponse.tenant_iv_salt) 
-                    ),
-    }
-    let tenantTwoBearerToken = await getOAuth(authCredentialsTenantTwo);
+    const [tenantOneBearerToken, tenantTwoBearerToken] = await Promise.all([
+        getBearerToken(tenantOneResponse),
+        getBearerToken(tenantTwoResponse)
+    ]);
 
     if (!tenantOneBearerToken || !tenantTwoBearerToken) {
         return res.status(404).json({ error: `Error in getting Bearer token for one of the tenants`});
     }
 
-    // Block of code for Getting packages of Tenant 1
-    let targetUrlTenantOne = tenantOneResponse.tenant_host_url+"/api/v1";
-    console.log('TargetURL: ', targetUrlTenantOne);
-    let responseTenantOne = await axiosInstance({
-        url: `${targetUrlTenantOne}/IntegrationPackages`,
-        token: tenantOneBearerToken
-    }).get();
-
-    if(!responseTenantOne) {
-        return res.status(500).json({ message: "Error in fetching package record for tenant"})
+    async function fetchIntegrationPackages(tenantResponse, bearerToken) {
+        const targetUrl = `${tenantResponse.tenant_host_url}/api/v1`;
+        return axiosInstance({
+            url: `${targetUrl}/IntegrationPackages`,
+            token: bearerToken
+        }).get();
     }
 
-    if (!responseTenantOne.data.d.results.length) {
-        return res.status(400).json({ message: "No integration packages are there"})
-    }
-
-    // Block of code for Getting packages of Tenant 2
-    let targetUrlTenantTwo = tenantTwoResponse.tenant_host_url+"/api/v1";
-    console.log('TargetURL: ', targetUrlTenantTwo);
-    let responseTenantTwo = await axiosInstance({
-        url: `${targetUrlTenantTwo}/IntegrationPackages`,
-        token: tenantTwoBearerToken
-    }).get();
-
-    if(!responseTenantTwo) {
-        return res.status(500).json({ message: "Error in fetching package record for tenant"})
-    }
-
-    if (!responseTenantTwo.data.d.results.length) {
-        return res.status(400).json({ message: "No integration packages are there"})
-    }
-
-    let integrationPackagesTenantOne = mapToIntegrationPackage(responseTenantOne.data.d.results);
-    let integrationPackagesTenantTwo = mapToIntegrationPackage(responseTenantTwo.data.d.results);
-
-    let mainResponseArray = [];
-    let tenantOnePackageArray = [];
-    let tenantTwoPackageArray = [];
     
-    for (let i=0; i< integrationPackagesTenantOne.length; i++) {
-        let artifact = await axiosInstance({
-            url: `${targetUrlTenantOne}/IntegrationPackages('${integrationPackagesTenantOne[i].Id}')/IntegrationDesigntimeArtifacts`,
-            token: tenantOneBearerToken,
-        }).get(); 
-   
+    const [responseTenantOne, responseTenantTwo] = await Promise.all([
+        fetchIntegrationPackages(tenantOneResponse, tenantOneBearerToken),
+        fetchIntegrationPackages(tenantTwoResponse, tenantTwoBearerToken)
+    ]);
 
-        // console.log('ArtifactList Tenant Two: ', mapToArtifcats( artifact.data.d.results));
-        tenantOnePackageArray.push ( {
-            packageId: integrationPackagesTenantOne[i].Id,
-            packageName: integrationPackagesTenantOne[i].Name,
-            Artifacts: mapToArtifcats( artifact.data.d.results)
-        })
-
+    if (responseTenantOne.error || responseTenantTwo.error) {
+        return res.status(500).json({ message: "Error in fetching package records for tenant(s)" });
     }
 
-    for (let i=0; i< integrationPackagesTenantTwo.length; i++) {
-        let artifact = await axiosInstance({
-            url: `${targetUrlTenantTwo}/IntegrationPackages('${integrationPackagesTenantTwo[i].Id}')/IntegrationDesigntimeArtifacts`,
-            token: tenantTwoBearerToken,
-        }).get(); 
+    const [integrationPackagesTenantOne, integrationPackagesTenantTwo] = await Promise.all([
+        mapToIntegrationPackage(responseTenantOne.data.d.results),
+        mapToIntegrationPackage(responseTenantTwo.data.d.results)
+    ]);
 
-        // console.log('ArtifactList Tenant Two: ', mapToArtifcats( artifact.data.d.results ));
-        tenantTwoPackageArray.push ( {
-            packageId: integrationPackagesTenantTwo[i].Id,
-            packageName: integrationPackagesTenantTwo[i].Name,
-            Artifacts: mapToArtifcats( artifact.data.d.results)
-        })
-    }
-
-    mainResponseArray.push(
-        {
-            key: tenantOneResponse.tenant_name,
-            packages: tenantOnePackageArray
-        },
-        {
-            key: tenantTwoResponse.tenant_name,
-            packages: tenantTwoPackageArray
+    async function fetchArtifacts(tenantResponse, bearerToken, integrationPackages) {
+        const targetUrl = `${tenantResponse.tenant_host_url}/api/v1`;
+        const packageArray = [];
+        for (let i = 0; i < integrationPackages.length; i++) {
+            const artifact = await axiosInstance({
+                url: `${targetUrl}/IntegrationPackages('${integrationPackages[i].Id}')/IntegrationDesigntimeArtifacts`,
+                token: bearerToken,
+            }).get();
+            packageArray.push({
+                packageId: integrationPackages[i].Id,
+                packageName: integrationPackages[i].Name,
+                Artifacts: mapToArtifacts(artifact.data.d.results)
+            });
         }
-    )
-    return res.status(200).json({data: mainResponseArray })
+        return packageArray;
+    }
+
+    const [tenantOnePackageArray, tenantTwoPackageArray] = await Promise.all([
+        fetchArtifacts(tenantOneResponse, tenantOneBearerToken, integrationPackagesTenantOne),
+        fetchArtifacts(tenantTwoResponse, tenantTwoBearerToken, integrationPackagesTenantTwo)
+    ]);
+
+    const mainResponseArray = [
+        { key: tenantOneResponse.tenant_name, packages: tenantOnePackageArray },
+        { key: tenantTwoResponse.tenant_name, packages: tenantTwoPackageArray }
+    ];
+
+    return res.status(200).json({ data: mainResponseArray });
+
 }
 
 //----------------------------------------------------------------------------------------------//
@@ -277,7 +245,7 @@ async function getPackagesWithArtifactsInfo (req, res ) {
 function mapToIntegrationPackage(input) {
 
     const mapKeys = [
-        'Id', 'ResourceId','Name', 'ShortText', 'Version', 'Mode','ModifiedBy', 'CreationDate', 'ModifiedDate', 'CreatedBy', 'Description', 
+        'Id', ,'Name', 
     ];
 
     // Understanding this function is the key
@@ -296,21 +264,13 @@ function mapToIntegrationPackage(input) {
     return  mapKeysToObject(mapKeys, input);
 }
 
-function mapToArtifcats(input) {
+function mapToArtifacts(input) {
 
     const mapKeys = [
         "Id",
-        "Version",
         "PackageId",
         "Name",
-        "Description",
-        "Sender",
-        "Receiver",
-        "CreatedBy",
-        "CreatedAt",
-        "ModifiedBy",
-        "ModifiedAt",
-    ];
+    ]
 
     // Understanding this function is the key
     function mapKeysToObject(keys, source) {
