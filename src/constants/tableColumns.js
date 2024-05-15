@@ -46,6 +46,7 @@ const tenantTableColumns = [
     "tenant_description",
     "tenant_region_id",
     "tenant_host_url",
+    "tenant_host_token_api",
     "tenant_host_username",
     "tenant_host_password",
     "tenant_iv_salt",

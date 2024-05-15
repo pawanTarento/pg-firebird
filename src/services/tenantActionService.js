@@ -25,6 +25,8 @@ const checkTenantConnection = async (req, res, tenantId) => {
         }
         
         let bearerToken = await getOAuth(inputCredentials);
+        console.log('Bearer token got: ', bearerToken)
+        console.log()
         if (!bearerToken || bearerToken === null) {
             // Simulate failure for Tenant connection not OK
             await Tenant.update({ tenant_host_test_status_id: 10002 }, {

@@ -30,6 +30,10 @@ Tenant.init({
         type: DataTypes.STRING(100),
         allowNull: true
     },
+    tenant_host_token_api: {
+        type: DataTypes.STRING(2048),
+        allowNull: true
+    },
     tenant_host_password: {
         type: DataTypes.STRING(300),
         allowNull: true
@@ -73,6 +77,6 @@ Tenant.init({
 
 module.exports = Tenant;
 
-Tenant.sync({ force: false })
+// Tenant.sync({ force: true })
 
 

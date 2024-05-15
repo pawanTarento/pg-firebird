@@ -1,10 +1,10 @@
 const integrationPackageService = require("../services/IntegrationPackageService");
 
-async function getAllEntries(req, res) {
+async function getAllPackagesList(req, res) {
     try {
         integrationPackageService.getIntegrationPackagesList(req, res)
     }catch(error) {
-        console.log("\nError in function: getAllEntries");
+        console.log("\nError in function: getAllPackagesList");
     }
 }
 
@@ -75,10 +75,22 @@ async function downloadIntegrationPackageBlob (req,res) {
 
 }
 
+async function getAllPackagesWithArtifactsInformation(req, res) {
+    try {
+        await integrationPackageService.getPackagesWithArtifactsInfo(req, res);
+    } catch(error) {
+        console.log('Error message: ', error.message);
+        console.log('error: stack', error.stack);
+        console.log("\nError in function: getAllPackagesWithArtifactsInformation");
+
+    }
+}
+
 // export all the modules
 module.exports = {
-    getAllEntries,
+    getAllPackagesList,
     postEntry,
+    getAllPackagesWithArtifactsInformation,
     getIntegrationPackageDetailsByPackageId,
     downloadIntegrationPackageBlob
 }

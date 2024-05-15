@@ -3,7 +3,7 @@ const axios = require("axios");
 const axiosInstance = (connect) => {
   
     let headerObject = {};
-    let timeout = 1000;
+    // let timeout = 1000;
     if (!connect.headers) {
         console.log('\nNo headers provided')
        headerObject =  {
@@ -13,14 +13,14 @@ const axiosInstance = (connect) => {
             }
     } 
 
-    if(connect.hasOwnProperty("timeout")) {
-        console.log('\nTimeout property\n', connect.timeout);
-        timeout = connect.timeout
-    }
+    // if(connect.hasOwnProperty("timeout")) {
+    //     console.log('\nTimeout property\n', connect.timeout);
+    //     timeout = connect.timeout
+    // }
 
     const config = {
       baseURL: connect.url,
-      timeout: timeout,
+      // timeout: timeout,
       headers: headerObject
     }
 

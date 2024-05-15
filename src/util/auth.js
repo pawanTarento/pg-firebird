@@ -27,11 +27,13 @@ async function getOAuth(inputCredentials) {
     }
 }
 
+
+
 async function getOAuthTenantOne() {
     const tenantOneCredential = {
-        tokenEndpoint : 'https://86f3b06dtrial.authentication.us10.hana.ondemand.com/oauth/token',
-        clientId :"sb-107e31d3-80ed-4663-863b-af7d672634c1!b271192|it!b55215",
-        clientSecret :"3bdc2367-7424-45fd-a884-d103d3d107c7$nuXvat1VnDqVUcqbF_3WXUQ61_jKY8K7RFz5lU7NCcs=",
+        tokenEndpoint : "https://pgisqa2.authentication.us20.hana.ondemand.com/oauth/token",
+        clientId :"sb-08c908ac-89f8-4ce2-918a-2f93e2da4f35!b12346|it!b34",
+        clientSecret :"47810be4-309c-4296-b2ff-4596e090ad37$j_ExYphyBePaIte1PH7br85_LbbhgZka-QlaWc2G7i4=",
     }
     let bearerToken = await getOAuth(tenantOneCredential);
     return bearerToken;
@@ -39,9 +41,9 @@ async function getOAuthTenantOne() {
 
 async function getOAuthTenantTwo() {
     const tenantTwoCredential = {
-        tokenEndpoint : 'https://ad58f2f9trial.authentication.us10.hana.ondemand.com/oauth/token',
-        clientId :'sb-65ced0d0-097c-45d2-a2db-d4cbcc8d867c!b259660|it!b55215',
-        clientSecret :'f68ef290-e966-4868-89aa-d9954e4eb5d2$2HZmLOwC5riveeM4CmuKfQjxiPn3Axdan5-0aig6EVU=',
+        tokenEndpoint : 'https://tarentobtp.authentication.eu10.hana.ondemand.com/oauth/token',
+        clientId :"sb-4580da99-af4a-4f4e-8faa-d570557797c9!b140765|it!b410603",
+        clientSecret :"174f464d-a14e-45b3-a778-beb1c0b1dd6f$fzZyjMdgt4CiNwodlegN4_aAl_wEdIqQIaSLWFAsgmw=",
     }
     let bearerToken = await getOAuth(tenantTwoCredential);
     return bearerToken;
