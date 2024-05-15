@@ -259,16 +259,16 @@ async function getPackagesWithArtifactsInfo (req, res ) {
         })
     }
 
-    mainResponseArray.push([
+    mainResponseArray.push(
         {
             key: tenantOneResponse.tenant_name,
             packages: tenantOnePackageArray
         },
         {
-            key: tenantTwoPackageArray.tenant_name,
+            key: tenantTwoResponse.tenant_name,
             packages: tenantTwoPackageArray
         }
-    ])
+    )
     return res.status(200).json({data: mainResponseArray })
 }
 
