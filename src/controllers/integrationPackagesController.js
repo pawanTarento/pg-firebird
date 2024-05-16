@@ -86,11 +86,22 @@ async function getAllPackagesWithArtifactsInformation(req, res) {
     }
 }
 
+async function cloneIntegrationPackagesWithArtifacts (req, res) {
+    try {
+        await integrationPackageService.copyPackagesWithArtifacts(req, res);
+    } catch(error) {
+        console.log('Error message: ', error.message);
+        console.log('error: stack', error.stack);
+        console.log("\nError in function: cloneIntegrationPackagesWithArtifacts");
+
+    }
+}
 // export all the modules
 module.exports = {
     getAllPackagesList,
     postEntry,
     getAllPackagesWithArtifactsInformation,
     getIntegrationPackageDetailsByPackageId,
-    downloadIntegrationPackageBlob
+    downloadIntegrationPackageBlob,
+    cloneIntegrationPackagesWithArtifacts
 }

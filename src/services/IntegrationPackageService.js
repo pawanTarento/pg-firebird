@@ -1,8 +1,9 @@
-const { axiosInstance,axiosInstanceNew } = require("./cpiClient");
+const { axiosInstance } = require("./cpiClient");
 const {getOAuthTenantOne,getOAuthTenantTwo, getOAuth} = require("../util/auth");
 const {  encryptData, decryptData,getEncryptionIV } = require("../util/decode")
 const axios = require("axios");
 const Tenant = require("../models/tenant");
+const { artifactTypes } = require("../constants/apiEndpoints");
 
 const baseURLTenantOne = "https://86f3b06dtrial.it-cpitrial06.cfapps.us10-001.hana.ondemand.com/api/v1";
 
@@ -168,14 +169,6 @@ async function getBearerToken(tenantResponse) {
     };
     return getOAuth(authCredentials);
 }
-/// MAIN Function
-// async function fetchIntegrationPackages(tenantResponse, bearerToken) {
-//     const targetUrl = `${tenantResponse.tenant_host_url}/api/v1`;
-//     return axiosInstanceNew({
-//         url: `${targetUrl}/IntegrationPackages`,
-//         token: bearerToken
-//     }).get();
-// }
 
 async function fetchIntegrationPackages(axiosInstance) {
     const url = `/api/v1/IntegrationPackages`;
@@ -183,14 +176,29 @@ async function fetchIntegrationPackages(axiosInstance) {
     return response;
 }
 
-async function fetchArtifacts(axiosInstance, integrationPackages) {
-    const packageArray = await Promise.all(integrationPackages.map(async (integrationPackage) => {
-        const url = `/api/v1/IntegrationPackages('${integrationPackage.Id}')/IntegrationDesigntimeArtifacts`;
+async function fetchArtifacts(axiosInstance, integrationPackages, artifactTypes) {
+    const fetchArtifact = async (integrationPackage, artifactType) => {
+        const url = `/api/v1/IntegrationPackages('${integrationPackage.Id}')/${artifactType}`;
         const response = await axiosInstance.get(url);
+        return response.data.d.results.map(artifact => ({
+            Id: artifact.Id,
+            Name: artifact.Name,
+            Type: artifactType,
+            Version: artifact.Version
+        }));
+    };
+
+    const packageArray = await Promise.all(integrationPackages.map(async (integrationPackage) => {
+        const artifactResponses = await Promise.all(artifactTypes.map(async (artifactType) => {
+            return fetchArtifact(integrationPackage, artifactType);
+        }));
+        
+        const artifacts = artifactResponses.flat();
         return {
             packageId: integrationPackage.Id,
             packageName: integrationPackage.Name,
-            Artifacts: mapToArtifacts(response.data.d.results)
+            verison: integrationPackage.Version,
+            artifacts
         };
     }));
     return packageArray;
@@ -199,14 +207,14 @@ async function fetchArtifacts(axiosInstance, integrationPackages) {
 async function getPackagesWithArtifactsInfo (req, res ) {
     const  {tenantOneId, tenantTwoId } = req.params;
     
-    const [tenantOneResponse, tenantTwoResponse] = await Promise.all([
+    const [tenantOneDbResponse, tenantTwoDbResponse] = await Promise.all([
         Tenant.findByPk(tenantOneId),
         Tenant.findByPk(tenantTwoId)
     ]);
 
     const [tenantOneBearerToken, tenantTwoBearerToken] = await Promise.all([
-        getBearerToken(tenantOneResponse),
-        getBearerToken(tenantTwoResponse)
+        getBearerToken(tenantOneDbResponse),
+        getBearerToken(tenantTwoDbResponse)
     ]);
 
     if (!tenantOneBearerToken || !tenantTwoBearerToken) {
@@ -214,11 +222,11 @@ async function getPackagesWithArtifactsInfo (req, res ) {
     }
     
     const axiosInstanceTenantOne = axiosInstance({
-        url: tenantOneResponse.tenant_host_url,
+        url: tenantOneDbResponse.tenant_host_url,
         token: tenantOneBearerToken
     });
     const axiosInstanceTenantTwo = axiosInstance({
-        url: tenantTwoResponse.tenant_host_url,
+        url: tenantTwoDbResponse.tenant_host_url,
         token: tenantTwoBearerToken
     });
     
@@ -232,16 +240,80 @@ async function getPackagesWithArtifactsInfo (req, res ) {
     }
 
     const [tenantOnePackageArray, tenantTwoPackageArray] = await Promise.all([
-        fetchArtifacts(axiosInstanceTenantOne, responseTenantOne.data.d.results),
-        fetchArtifacts(axiosInstanceTenantTwo, responseTenantTwo.data.d.results)
+        fetchArtifacts(axiosInstanceTenantOne, responseTenantOne.data.d.results, artifactTypes),
+        fetchArtifacts(axiosInstanceTenantTwo, responseTenantTwo.data.d.results, artifactTypes)
     ]);
 
     const mainResponseArray = [
-        { key: tenantOneResponse.tenant_name, packages: tenantOnePackageArray },
-        { key: tenantTwoResponse.tenant_name, packages: tenantTwoPackageArray }
+        { key: tenantOneDbResponse.tenant_name, packages: tenantOnePackageArray },
+        { key: tenantTwoDbResponse.tenant_name, packages: tenantTwoPackageArray }
     ];
 
     return res.status(200).json({ data: mainResponseArray });
+
+}
+
+//************************************************************* */
+async function copyPackagesWithArtifacts ( req, res) {
+    const  {tenantOneId, tenantTwoId } = req.params;
+    // const { payload } = req.body;
+    console.log('{tenantOneId, tenantTwoId }: ', tenantOneId, tenantTwoId );
+
+    function validatePayload( payload ) {
+
+    }
+  
+    let payload =  [
+        {
+            PackageId: "Hello",
+            Artifacts: [ {
+               Id: "Artifact-one",
+               Version: "1.0.0",
+               Type: "MessageMapping"
+             }, 
+             {
+                Id: "Artifact-two",
+                Version: "1.0.0",
+                Type: "IntegrationFlow"
+              }
+            ]
+        },
+        {
+            PackageId: "World",
+            ArtifactIds: [ "Artifact-Four", "Artifact-Five", "Artifact-Six"]
+        },
+        {
+            PackageId: "However"
+            // No Artifact provided means, Copy everything from the package
+        },
+    ];
+        const [tenantOneDbResponse, tenantTwoDbResponse] = await Promise.all([
+        Tenant.findByPk(tenantOneId),
+        Tenant.findByPk(tenantTwoId)
+    ]);
+
+    const [tenantOneBearerToken, tenantTwoBearerToken] = await Promise.all([
+        getBearerToken(tenantOneDbResponse),
+        getBearerToken(tenantTwoDbResponse)
+    ]);
+
+    if (!tenantOneBearerToken || !tenantTwoBearerToken) {
+        return res.status(404).json({ error: `Error in getting Bearer token for one of the tenants`});
+    }
+
+
+    return res.status(200).send(tenantOneBearerToken)
+
+
+    
+    // const axiosInstanceTenantOne = axiosInstance({
+    //     url: tenantOneDbResponse.tenant_host_url,
+    //     token: tenantOneBearerToken
+    // });
+    // const axiosInstanceTenantTwo = axiosInstance({
+    //     url: tenantTwoDbResponse.tenant_host_url,
+    //     token: tenantTwoBearerToken
+    // });
 
 }
 
@@ -250,7 +322,7 @@ async function getPackagesWithArtifactsInfo (req, res ) {
 function mapToIntegrationPackage(input) {
 
     const mapKeys = [
-        'Id', 'Name', "PackageId"
+        'Id', 'Name', "Version"
     ];
 
     // Understanding this function is the key
@@ -271,10 +343,23 @@ function mapToIntegrationPackage(input) {
 
 function mapToArtifacts(input) {
 
+    // Id: 'Proxy_Sync_Generic_Outbound_Pattern',
+    // Version: '1.0.8',
+    // PackageId: 
+    // Name:
+    // Description: 
+    // Sender: 
+    // Receiver: 
+    // CreatedBy:
+    // CreatedAt: 
+    // ModifiedBy:
+    // ModifiedAt: 
+
     const mapKeys = [
         "Id",
         "PackageId",
         "Name",
+        "Version"
     ]
 
     // Understanding this function is the key
@@ -306,7 +391,8 @@ module.exports = {
     postList,
     getIntegrationPackageById,
     downloadIntegrationPackage,
-    getPackagesWithArtifactsInfo
+    getPackagesWithArtifactsInfo,
+    copyPackagesWithArtifacts
 }
 
 

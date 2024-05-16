@@ -8,6 +8,9 @@ router.route('/:tenantId')
 router.route("/sync/:tenantOneId/:tenantTwoId")
     .get(integrationPackage.getAllPackagesWithArtifactsInformation);
 
+router.route("/clone/:tenantOneId/:tenantTwoId")
+    .post(integrationPackage.cloneIntegrationPackagesWithArtifacts);
+
 // router.route('/')
 //     .get( integrationPackage.getAllEntries)
 //     .post(integrationPackage.postEntry); // can post one or single integration package;

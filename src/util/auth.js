@@ -2,10 +2,7 @@ const axios = require("axios");
 
 // Later on -> rename this function
 async function getOAuth(inputCredentials) {
-    const tokenEndpoint = inputCredentials.tokenEndpoint;
-    const clientId = inputCredentials.clientId; 
-    const clientSecret = inputCredentials.clientSecret;
-
+    const { tokenEndpoint, clientId, clientSecret } = inputCredentials;
     // Encode client ID and client secret in Base64
     const authHeader = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
 
