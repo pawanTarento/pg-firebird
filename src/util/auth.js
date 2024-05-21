@@ -1,4 +1,6 @@
 const axios = require("axios");
+const Tenant = require("../models/tenant");
+const { decryptData , getEncryptionIV} = require("./decode");
 
 // Later on -> rename this function
 async function getOAuth(inputCredentials) {
@@ -24,6 +26,51 @@ async function getOAuth(inputCredentials) {
     }
 }
 
+async function getBearerToken(tenantResponse) {
+    const authCredentials = {
+        tokenEndpoint: tenantResponse.tenant_host_token_api,
+        clientId: tenantResponse.tenant_host_username,
+        clientSecret: decryptData (
+            tenantResponse.tenant_host_password,
+            getEncryptionIV(tenantResponse.tenant_iv_salt)
+        )
+    };
+    return getOAuth(authCredentials);
+}
+
+async function getBearerToken(tenantResponse) {
+    const authCredentials = {
+        tokenEndpoint: tenantResponse.tenant_host_token_api,
+        clientId: tenantResponse.tenant_host_username,
+        clientSecret: decryptData (
+            tenantResponse.tenant_host_password,
+            getEncryptionIV(tenantResponse.tenant_iv_salt)
+        )
+    };
+    return getOAuth(authCredentials);
+}
+
+async function getBearerTokenForTenants (tenantOneId, tenantTwoId) {
+    try {
+        const [tenantOneDbResponse, tenantTwoDbResponse] = await Promise.all([
+            Tenant.findByPk(tenantOneId),
+            Tenant.findByPk(tenantTwoId)
+        ]);
+    
+        const [tenantOneBearerToken, tenantTwoBearerToken] = await Promise.all([
+            getBearerToken(tenantOneDbResponse),
+            getBearerToken(tenantTwoDbResponse)
+        ]);
+    
+        if (!tenantOneBearerToken || !tenantTwoBearerToken) {
+           throw new Error('Cannot get bearer token for tenant(s)')
+        }
+        return [tenantOneBearerToken, tenantTwoBearerToken, tenantOneDbResponse, tenantTwoDbResponse ]
+    } catch(error) {
+        console.log('Fn: getBearerTokenForTenants, error in getting Authorization bearer token: ', error );
+    }
+   
+}
 
 
 async function getOAuthTenantOne() {
@@ -72,5 +119,6 @@ module.exports = {
     getOAuthTenantOne,
     getOAuthTenantTwo,
     // getOAuthGit,
+    getBearerTokenForTenants,
     getOAuth
 }

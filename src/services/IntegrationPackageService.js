@@ -1,5 +1,5 @@
 const { axiosInstance } = require("./cpiClient");
-const {getOAuthTenantOne,getOAuthTenantTwo, getOAuth} = require("../util/auth");
+const {getOAuthTenantOne,getOAuthTenantTwo, getBearerTokenForTenants, getOAuth} = require("../util/auth");
 const {  encryptData, decryptData,getEncryptionIV } = require("../util/decode")
 const axios = require("axios");
 const Tenant = require("../models/tenant");
@@ -195,9 +195,17 @@ async function fetchArtifacts(axiosInstance, integrationPackages, artifactTypes)
         
         const artifacts = artifactResponses.flat();
         return {
-            packageId: integrationPackage.Id,
-            packageName: integrationPackage.Name,
-            verison: integrationPackage.Version,
+            PackageId: integrationPackage.Id,
+            PackageName: integrationPackage.Name,
+            Version: integrationPackage.Version,
+            Description: integrationPackage.Description,
+            ShortText: integrationPackage.ShortText,
+            SupportedPlatform: integrationPackage.SupportedPlatform,
+            Products: integrationPackage.Products,
+            Keywords: integrationPackage.Keywords,
+            Countries: integrationPackage.Countries,
+            Industries: integrationPackage.Industries,
+            LineOfBusiness: integrationPackage.LineOfBusiness,
             artifacts
         };
     }));
@@ -253,76 +261,189 @@ async function getPackagesWithArtifactsInfo (req, res ) {
 
 }
 
-//************************************************************* */
-async function copyPackagesWithArtifacts ( req, res) {
-    const  {tenantOneId, tenantTwoId } = req.params;
-    // const { payload } = req.body;
-    console.log('{tenantOneId, tenantTwoId }: ', tenantOneId, tenantTwoId );
+function bifurcatePayload( payload ) {
+    let packagesToCloneArray = [];
+    let packagesWithArtifacts = [];
+    if (!Array.isArray(payload)) {
+        return res.status(400).json({ message: "Expecting Package Artifact list in an array format"})
+    } 
 
-    function validatePayload( payload ) {
-
-    }
-  
-    let payload =  [
-        {
-            PackageId: "Hello",
-            Artifacts: [ {
-               Id: "Artifact-one",
-               Version: "1.0.0",
-               Type: "MessageMapping"
-             }, 
-             {
-                Id: "Artifact-two",
-                Version: "1.0.0",
-                Type: "IntegrationFlow"
-              }
-            ]
-        },
-        {
-            PackageId: "World",
-            ArtifactIds: [ "Artifact-Four", "Artifact-Five", "Artifact-Six"]
-        },
-        {
-            PackageId: "However"
-            // No Artifact provided means, Copy everything from the package
-        },
-    ];
-        const [tenantOneDbResponse, tenantTwoDbResponse] = await Promise.all([
-        Tenant.findByPk(tenantOneId),
-        Tenant.findByPk(tenantTwoId)
-    ]);
-
-    const [tenantOneBearerToken, tenantTwoBearerToken] = await Promise.all([
-        getBearerToken(tenantOneDbResponse),
-        getBearerToken(tenantTwoDbResponse)
-    ]);
-
-    if (!tenantOneBearerToken || !tenantTwoBearerToken) {
-        return res.status(404).json({ error: `Error in getting Bearer token for one of the tenants`});
+    if ( !payload.length) {
+        return res.status(400).json({ message: "Payload is empty."})
     }
 
+    for ( let i=0; i< payload.length; i++) {
 
-    return res.status(200).send(tenantOneBearerToken)
+        if ( payload[i].hasOwnProperty("artifacts") && payload[i].hasOwnProperty("packageId")) {
+           
+            packagesWithArtifacts.push( payload[i] );
+        } else {
+            packagesToCloneArray.push ( payload[i] );
+        }
 
+    }
 
-    
-    // const axiosInstanceTenantOne = axiosInstance({
-    //     url: tenantOneDbResponse.tenant_host_url,
-    //     token: tenantOneBearerToken
-    // });
-    // const axiosInstanceTenantTwo = axiosInstance({
-    //     url: tenantTwoDbResponse.tenant_host_url,
-    //     token: tenantTwoBearerToken
-    // });
-
+    return [packagesToCloneArray, packagesWithArtifacts]
 }
+
+async function copyPackagesWithArtifacts(req, res) {
+    // tenantOneId -> this is my source tenant
+    // tenantTwoId -> this is my target tenant
+    const { tenantOneId, tenantTwoId } = req.params;
+    const { payload } = req.body;
+
+    const [onlyPackagesToClone, packagesWithArtifacts] = bifurcatePayload(payload);
+    console.log('onlyPackagesToClone: ', onlyPackagesToClone);
+    console.log('packagesWithArtifacts: ', JSON.stringify(packagesWithArtifacts, null, 2));
+
+    try {
+        const [
+             tenantOneBearerToken, tenantTwoBearerToken,
+             tenantOneDbResponse, tenantTwoDbResponse 
+        ] = await getBearerTokenForTenants(tenantOneId, tenantTwoId);
+
+        const axiosInstanceTenantOne = axiosInstance({
+            url: tenantOneDbResponse.tenant_host_url,
+            responseType: 'arraybuffer',
+            token: tenantOneBearerToken
+        });
+
+        const axiosInstanceTenantTwo = axiosInstance({
+            url: tenantTwoDbResponse.tenant_host_url,
+            token: tenantTwoBearerToken
+        });
+       
+        // Function to create packages with Artifacts
+        const createPackageWithArtifacts = async (packageData, instanceOne, instanceTwo) => {
+            try {
+                const { packageId, isExistingOnTarget, artifacts } = packageData;
+                if (!isExistingOnTarget) {
+
+                    const postRequest = await instanceTwo.post(`/api/v1/IntegrationPackages`, 
+                    JSON.stringify({
+                        "Id": packageId,
+                        "Name": packageData.Name,
+                        "Version": packageData.Version,
+                        "Description": packageData.Description,
+                        "ShortText": packageData.ShortText,
+                        "SupportedPlatform": packageData.SupportedPlatform,
+                        "Products": packageData.Products,
+                        "Keywords": packageData.Keywords,
+                        "Countries": packageData.Countries,
+                        "Industries": packageData.Industries,
+                        "LineOfBusiness": packageData.LineOfBusiness
+                    })
+                  );
+                    console.log("Package creation successful: ", postRequest.data);
+                    
+                }
+
+                await Promise.all(artifacts.map(async (artifact) => {
+
+                    const artifactEndpointString = getArtifactEndpointString(artifact.Type);
+                    const getUrl = `/api/v1/${artifactEndpointString}(Id='${artifact.Id}',Version='${artifact.Version}')/$value`;
+                    const getRequest = await instanceOne.get(getUrl);
+                    // console.log('THIS: ', Buffer.from(getRequest.data, 'binary').toString("base64"));
+                    const postRequest = await instanceTwo.post(
+                        `/api/v1/${artifactEndpointString}`,
+                        JSON.stringify({
+                            Id: artifact.Id,
+                            Name: artifact.Name,
+                            PackageId: packageId,
+                            ArtifactContent: Buffer.from(getRequest.data, 'binary').toString("base64")
+                        })
+                    );
+                    console.log("Artifact copy successful: ", artifact.Id);
+                }));
+            } catch (error) {
+                console.error('Error processing artifact of package: ', packageData.packageId, error);
+            }
+        };
+
+        const createOrCopySinglePackage = async (packageData, instanceOne, instanceTwo) => {
+            console.log('createOrCopySinglePackage', packageData.packageId );
+            try {
+                let url = `/api/v1/IntegrationPackages('${packageData.packageId}')/$value`;
+                let response = await instanceOne.get(url);
+                
+                if (!response.data) {
+                    throw new Error(`No data received for package ${packageData.packageId}`);
+                }
+        
+                // Convert the binary data to base64 string
+                let packageContentBase64 = Buffer.from(response.data, 'binary').toString("base64");
+        
+                // Post the package content to tenant two
+                let postRequest = await instanceTwo.post(
+                    `/api/v1/IntegrationPackages?Overwrite=true`,
+                    JSON.stringify({
+                        "PackageContent": packageContentBase64
+                    })
+                );
+        
+                if (postRequest) {
+                    console.log("Package creation successful:", postRequest.data);
+                }
+            } catch (error) {
+                console.error('Error creating empty package:', packageData.packageId, error.message);
+            }
+        };
+        
+
+        // Create or copy packages concurrently
+        await Promise.all([
+            ...onlyPackagesToClone.map(packageData => createOrCopySinglePackage(packageData, axiosInstanceTenantOne, axiosInstanceTenantTwo)),
+            ...packagesWithArtifacts.map(packageData => createPackageWithArtifacts(packageData, axiosInstanceTenantOne, axiosInstanceTenantTwo))
+        ]);
+
+        return res.status(200).json({ message: "Packages and Artifacts copied successfully" });
+    } catch (error) {
+        console.error('Error in copyPackagesWithArtifacts: ', error.message);
+        return res.status(500).json({ error: 'Internal Server Error' });
+    }
+}
+
+function getArtifactEndpointString(type) {
+    switch (type) {
+        case "IntegrationDesigntimeArtifacts":
+            return "IntegrationDesigntimeArtifacts";
+        case "MessageMappingDesigntimeArtifacts":
+            return "MessageMappingDesigntimeArtifacts";
+        case "ValueMappingDesigntimeArtifacts":
+            return "ValueMappingDesigntimeArtifacts";
+        case "ScriptCollectionDesigntimeArtifacts":
+            return "ScriptCollectionDesigntimeArtifacts";
+        default:
+            throw new Error('Invalid artifact type');
+    }
+}
+
 
 //----------------------------------------------------------------------------------------------//
 // Non exported functions:
 function mapToIntegrationPackage(input) {
 
     const mapKeys = [
-        'Id', 'Name', "Version"
+        "Id",
+    "Name",
+    "ResourceId",
+    "Description",
+    "ShortText",
+    "Version",
+    "Vendor",
+    "PartnerContent",
+    "UpdateAvailable",
+    "Mode",
+    "SupportedPlatform",
+    "ModifiedBy",
+    "CreationDate",
+    "ModifiedDate",
+    "CreatedBy",
+    "Products",
+    "Keywords",
+    "Countries",
+    "Industries",
+    "LineOfBusiness"
     ];
 
     // Understanding this function is the key

@@ -15,6 +15,6 @@ router.use("/tenant", require("./routes/tenantMasterRouter"));
 router.use("/taxonomy", require("./routes/taxonomyRouter"));
 router.use("/ufm", require("./routes/ufmProfileRouter"));
 router.use("/userMaster", require("./routes/userMasterRouter"));
-
+router.use('/tokens', require("./routes/tokenProviderRouter"));
 
 module.exports = router;

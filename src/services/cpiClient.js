@@ -13,11 +13,7 @@ const axiosInstance = (connect) => {
             }
     } 
 
-    // if(connect.hasOwnProperty("timeout")) {
-    //     console.log('\nTimeout property\n', connect.timeout);
-    //     timeout = connect.timeout
-    // }
-
+    // i
     const config = {
       baseURL: connect.url,
       // timeout: timeout,
