@@ -3,10 +3,26 @@ const morgan =require( "morgan");
 const winston = require( "winston");
 const logRequest = require("./src/middlewares/print");
 const routeLoader = require("./src/routeLoader");
+// Do all these table DB things separately
 const Tenant = require("./src/models/tenant");
 const GitRepository = require("./src/models/gitRepository");
-const UFMProfile = require("./src/models/ufmProfile");
 const Taxonomy = require("./src/models/taxonomy");
+
+// const UFMProfile = require("./src/models/ufmProfile");
+// const UFMFailoverConfig = require('./src/models/UFM/ufmFailoverConfig');
+// const UFMFailoverConfigState = require('./src/models/UFM/ufmFailoverConfigState');
+
+async function syncModels() {
+    try {
+        await UFMProfile.sync({ force: true });
+        await UFMFailoverConfig.sync({ force: true });
+        await UFMFailoverConfigState.sync({ force: true });
+    } catch (error) {
+        console.error('Error syncing models:', error);
+    }
+}
+
+// syncModels();
 
 const app = express();
 

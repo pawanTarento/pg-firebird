@@ -1,6 +1,7 @@
 // tenant.js
 const { DataTypes, Model } = require('sequelize');
 const sequelize = require('../dbconfig/config');
+const UFMFailoverConfig = require('./UFM/ufmFailoverConfig');
 
 class UFMProfile extends Model {}
 
@@ -53,6 +54,9 @@ UFMProfile.init({
 
 module.exports = UFMProfile;
 
-// UFMProfile.sync({ force: false })
+UFMProfile.hasMany(  UFMFailoverConfig, { foreignKey: "ufm_profile_id"} );
+UFMFailoverConfig.belongsTo( UFMProfile,{ foreignKey: "ufm_profile_id"} );
+
+// UFMProfile.sync({ force: true })
 
 

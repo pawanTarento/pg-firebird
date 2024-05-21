@@ -16,5 +16,8 @@ router.use("/taxonomy", require("./routes/taxonomyRouter"));
 router.use("/ufm", require("./routes/ufmProfileRouter"));
 router.use("/userMaster", require("./routes/userMasterRouter"));
 router.use('/tokens', require("./routes/tokenProviderRouter"));
+router.use("/failoverConfig", require("./routes/ufmFailoverConfigRouter"));
+router.use("/failoverConfigState",require("./routes/ufmFailoverConfigStateRouter"));
+
 
 module.exports = router;
