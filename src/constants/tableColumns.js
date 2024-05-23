@@ -78,10 +78,49 @@ const taxonomyTableColumns =[
     "created_by"
 ]
 
+const UFMFailoverConfigStateTableColumns = [
+    "config_state_id",
+    "ufm_profile_id",
+    "config_state_saved_on",
+    "short_comment",
+    "is_last_record",
+    "created_by",
+    "created_on",
+    "modified_by",
+    "modified_on"
+];
+
+const UFMFailoverConfigTableColumns=[
+    "config_id",
+    "config_state_id",
+    "ufm_profile_id",
+    "config_component_row_select",
+    "config_component_group_name",
+    "config_component_group_order",
+    "config_component_position",
+    "config_component_version",
+    "config_component_name",
+    "config_component_id",
+    "config_component_package_id",
+    "config_component_resource_id",
+    "config_component_description",
+    "config_component_short_text",
+    "config_component_mode",
+    "config_component_created_by",
+    "config_component_created_on",
+    "config_component_modified_by",
+    "config_component_modified_on",
+    "config_timestamp",
+    "is_draft",
+    "is_deleted"
+]
+
 module.exports = {
     userMasterColumns,
     gitMasterColumns,
     ufmProfileColumns,
     tenantTableColumns,
-    taxonomyTableColumns
+    taxonomyTableColumns,
+    UFMFailoverConfigStateTableColumns,
+    UFMFailoverConfigTableColumns
 }

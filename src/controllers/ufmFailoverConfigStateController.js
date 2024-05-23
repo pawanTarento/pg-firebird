@@ -8,6 +8,7 @@ const createFailoverConfigStateRecord = async (req, res) => {
     }
 }
 
+// dont need this
 const updateFailoverConfigStateRecord = async (req, res) => {
     try {
         ufmFailoverConfigStateService.modifyFailoverConfigStateRecord(req, res)
@@ -16,17 +17,20 @@ const updateFailoverConfigStateRecord = async (req, res) => {
     }
 }
 
+// dont need this
 const removeFailoverConfigStateRecord = async (req, res) => {
+    const configStateId = req.params.configStateId;
     try {
-        ufmFailoverConfigStateService.deleteFailoverConfigStateRecord(req,res)
+        ufmFailoverConfigStateService.deleteFailoverConfigStateRecord(req,res, configStateId)
     } catch(error) {
         console.log('Error in controller, removeFailoverConfigStateRecord: ', error);
     }
 }
 
 const getFailoverConfigStateRecord = async(req, res) => {
+    const ufmProfileId = req.params.ufmProfileId;
     try {
-        ufmFailoverConfigStateService.getSingleFailoverConfigStateRecord(req, res)
+        ufmFailoverConfigStateService.getSingleFailoverConfigStateRecord(req, res, ufmProfileId)
     } catch(error) {
         console.log('Error in controller, getFailoverConfigStateRecord: ', error);
     }
@@ -34,7 +38,7 @@ const getFailoverConfigStateRecord = async(req, res) => {
 
 const getAllFailoverConfigStateRecords = async(req, res) => {
     try {
-        ufmFailoverConfigStateService.AllFailoverConfigStateRecords(req,res)
+        ufmFailoverConfigStateService.allFailoverConfigStateRecords(req,res)
     } catch(error) {
         console.log('Error in controller, getAllFailoverConfigStateRecords: ', error);
     }    

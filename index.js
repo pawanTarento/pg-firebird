@@ -7,22 +7,23 @@ const routeLoader = require("./src/routeLoader");
 const Tenant = require("./src/models/tenant");
 const GitRepository = require("./src/models/gitRepository");
 const Taxonomy = require("./src/models/taxonomy");
+const UFMProfile = require("./src/models/ufmProfile");
+const UFMFailoverConfigState = require("./src/models/UFM/ufmFailoverConfigState");
+const UFMFailoverConfig = require("./src/models/UFM/ufmFailoverConfig");
 
-// const UFMProfile = require("./src/models/ufmProfile");
-// const UFMFailoverConfig = require('./src/models/UFM/ufmFailoverConfig');
-// const UFMFailoverConfigState = require('./src/models/UFM/ufmFailoverConfigState');
 
+// Production -> I will have to write a syncModel in order to make all tables simultaneously
 async function syncModels() {
     try {
-        await UFMProfile.sync({ force: true });
-        await UFMFailoverConfig.sync({ force: true });
-        await UFMFailoverConfigState.sync({ force: true });
+        await UFMProfile.sync({ force: true});
+        await UFMFailoverConfigState.sync({ force: true});
+        await UFMFailoverConfig.sync({ force: true});
     } catch (error) {
         console.error('Error syncing models:', error);
     }
 }
 
-// syncModels();
+// syncModels(); 
 
 const app = express();
 

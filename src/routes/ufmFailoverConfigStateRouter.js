@@ -7,7 +7,7 @@ router.route('/')
     .post(ufmFailoverConfigStateController.createFailoverConfigStateRecord)
     .put( ufmFailoverConfigStateController.updateFailoverConfigStateRecord)
 
-router.route("/:configStateId") 
+router.route("/:ufmProfileId") 
     .get( ufmFailoverConfigStateController.getFailoverConfigStateRecord)
     .delete(ufmFailoverConfigStateController.removeFailoverConfigStateRecord);
 
