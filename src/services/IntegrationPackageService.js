@@ -171,6 +171,7 @@ async function getBearerToken(tenantResponse) {
 }
 
 async function fetchIntegrationPackages(axiosInstance) {
+    console.log('REACHINGHERE');
     const url = `/api/v1/IntegrationPackages`;
     const response = await axiosInstance.get(url);
     return response;
@@ -212,9 +213,8 @@ async function fetchArtifacts(axiosInstance, integrationPackages, artifactTypes)
     return packageArray;
 }
 
-async function getPackagesWithArtifactsInfo (req, res ) {
-    const  {tenantOneId, tenantTwoId } = req.params;
-    
+const getPackagesWithArtifacts= async (tenantOneId, tenantTwoId, isCalledFromAPI = false) => {
+    try {
     const [tenantOneDbResponse, tenantTwoDbResponse] = await Promise.all([
         Tenant.findByPk(tenantOneId),
         Tenant.findByPk(tenantTwoId)
@@ -256,7 +256,22 @@ async function getPackagesWithArtifactsInfo (req, res ) {
         { key: tenantOneDbResponse.tenant_name, packages: tenantOnePackageArray },
         { key: tenantTwoDbResponse.tenant_name, packages: tenantTwoPackageArray }
     ];
+    if (isCalledFromAPI) {
+        return mainResponseArray;
+    } else {
+        return { mainResponseArray,axiosInstanceTenantOne, axiosInstanceTenantTwo }
+    }
+    } catch(error) {
+        console.log('Error in service function getPackagesWithArtifacts: ', error);
+        return [];
+    }   
 
+}
+async function getPackagesWithArtifactsInfo (req, res ) {
+    const  {tenantOneId, tenantTwoId } = req.params;
+    let isCalledFromAPI = true;
+    let mainResponseArray = await getPackagesWithArtifacts(tenantOneId, tenantTwoId, isCalledFromAPI);
+    
     return res.status(200).json({ data: mainResponseArray });
 
 }
@@ -513,7 +528,10 @@ module.exports = {
     getIntegrationPackageById,
     downloadIntegrationPackage,
     getPackagesWithArtifactsInfo,
-    copyPackagesWithArtifacts
+    copyPackagesWithArtifacts,
+    fetchArtifacts,
+    fetchIntegrationPackages,
+    getPackagesWithArtifacts
 }
 
 
