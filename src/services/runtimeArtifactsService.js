@@ -17,19 +17,27 @@ const getSourceTenantRuntimeWithTargetTenantDesigntimeArtifacts = async (req, re
         let responseRuntime = await axiosInstanceTenantOne.get(`/api/v1/IntegrationRuntimeArtifacts`)
         let responseRuntimeResult = responseRuntime.data.d.results;
         // Create a map of runtime artifacts for quick lookup by Id
-        let runtimeArtifactsMap = new Map(responseRuntimeResult.map(item => [item.Id, item.Version]));
+        let runtimeArtifactsMap = new Map(responseRuntimeResult.map(item => { 
+            let Runtime = {
+                Version: item.Version,
+                Type: item.Type,
+                DeployedBy: item.DeployedBy,
+                DeployedOn: item.DeployedOn,
+                Status: item.Status,
+                ErrorInformation: item.ErrorInformation
+            }
+            return [item.Id, Runtime]
+        }));
+
         console.log('runtimeArtifactsMap: ', runtimeArtifactsMap);
         // Update artifact versions with runtime versions
         tenantOneSourcePackagesWithArtifacts.forEach( item => {
 
-            item.artifacts.forEach( artifact => {
-                if (artifact.Type === "IntegrationDesigntimeArtifacts") {
-                    if (runtimeArtifactsMap.has(artifact.Id)) { 
-                        artifact.RuntimeVersion = runtimeArtifactsMap.get(artifact.Id);
-                    } else {
-                        artifact.RuntimeVersion = "N/A";
-                        // only for integration runtime artifacts I would be able to 
-                    }
+            item.artifacts.forEach( artifactItem => {
+                if (artifactItem.Type === "IntegrationDesigntimeArtifacts") {
+                    if (runtimeArtifactsMap.has(artifactItem.Id)) { 
+                        artifactItem.Runtime = runtimeArtifactsMap.get(artifactItem.Id);
+                    } 
                 }
             });
 
