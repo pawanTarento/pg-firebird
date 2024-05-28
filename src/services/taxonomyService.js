@@ -10,7 +10,6 @@ const getAllTaxonomyList = async (req, res) => {
         attributes: taxonomyTableColumns
     });
     
-    console.log('clg: ', response);
     if (!response) {
         return res.status(404).json({ message: "Records not found for taxonomy"})
     }
@@ -64,8 +63,26 @@ const getTaxonomyListByCode = async ( req, res, codeRequestList ) => {
 }
 
 
+const getTaxonomyListByType = async ( req, res, typeRequestList ) => {
+    
+    try {
+        const response = await Taxonomy.findAll({
+            where: {
+                taxonomy_type : typeRequestList
+            }
+        }); 
+        
+        return res.status(200).json({ data: response });
+
+    } catch (error) {
+        console.error('Error fetching data:', error);
+        return null;
+    }
+}
+
 module.exports = {
     getAllTaxonomyList,
     getTaxonomyListByCode,
-    getAllTaxonomyGroupRecords
+    getAllTaxonomyGroupRecords,
+    getTaxonomyListByType
 }

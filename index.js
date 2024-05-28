@@ -15,9 +15,14 @@ const UFMFailoverConfig = require("./src/models/UFM/ufmFailoverConfig");
 // Production -> I will have to write a syncModel in order to make all tables simultaneously
 async function syncModels() {
     try {
-        await UFMProfile.sync({ force: true});
+        // await UFMProfile.sync({ force: true});
+        await Tenant.sync({ force: true });
+        await GitRepository.sync({ force: true});
+
         await UFMFailoverConfigState.sync({ force: true});
         await UFMFailoverConfig.sync({ force: true});
+
+        await UFMProfile.sync({ force: true});
     } catch (error) {
         console.error('Error syncing models:', error);
     }

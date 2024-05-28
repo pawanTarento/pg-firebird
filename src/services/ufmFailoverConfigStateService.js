@@ -18,9 +18,9 @@ const addFailoverConfigStateRecord = async (req, res) => {
 
           const newConfigState = await UFMFailoverConfigState.create({
             ufm_profile_id:ufmProfileId,
-            short_comment: 'New state',
+            short_comment: payload.short_comment,
             is_last_record: true,
-            created_by: 999, // Replace with actual user ID from payload or context
+            created_by: payload.created_by, // Replace with actual user ID from payload or context
             config_state_saved_on: Math.floor(Date.now() / 1000)
           }, { transaction });
 
@@ -31,7 +31,7 @@ const addFailoverConfigStateRecord = async (req, res) => {
             ...config,
             config_state_id: newConfigState.config_state_id,
             config_timestamp: Math.floor(Date.now() / 1000),
-            config_component_created_by: 1, // Replace with actual user ID from payload or context
+            // config_component_created_by: 1, // Replace with actual user ID from payload or context
             config_component_created_on: Math.floor(Date.now() / 1000),
             config_component_modified_on: Math.floor(Date.now() / 1000)
         }));

@@ -1,6 +1,7 @@
 // gitModel.js
 const { DataTypes, Model } = require('sequelize');
 const sequelize = require('../dbconfig/config');
+const UFMProfile = require('./ufmProfile');
 
 class GitRepository extends Model {}
 
@@ -74,3 +75,4 @@ GitRepository.init({
 module.exports = GitRepository;
 
 GitRepository.sync({ force: false });
+UFMProfile.belongsTo( GitRepository, { foreignKey: "ufm_profile_gr_id"})

@@ -11,4 +11,7 @@ router.route('/group')
 router.route('/code')
     .post( taxonomyController.getTaxonomyRecordsByCode );
 
+router.route('/type')
+    .post( taxonomyController.getTaxonomyRecordsByType);
+
 module.exports = router;

@@ -1,11 +1,42 @@
 const UFMProfile = require("../models/ufmProfile");
-const { ufmProfileColumns } = require("../constants/tableColumns");
+const { ufmProfileColumns, gitMasterColumns } = require("../constants/tableColumns");
+const Tenant = require("../models/tenant");
+const GitRepository = require("../models/gitRepository");
 
 const getAllUfmRecords = async (req, res) => {
 
     let response = await UFMProfile.findAll( {
         where: {},
         attributes: ufmProfileColumns,
+        include: [
+        {
+          model: Tenant,
+          "as": "ufm_profile_primary_tenant",
+          attributes: [
+            "tenant_id",
+            "tenant_name",
+            "tenant_description",
+          ]
+        },
+        {
+          model: Tenant,
+          "as": "ufm_profile_secondary_tenant",
+          attributes: [
+            "tenant_id",
+            "tenant_name",
+            "tenant_description",
+          ]
+        },
+        {
+          model: GitRepository,
+          attributes:[
+            "gr_id",
+            "gr_owner_name",
+            "gr_name",
+            "gr_description",
+          ]
+        }
+      ]
     })
 
     if (!response) {
@@ -17,7 +48,36 @@ const getAllUfmRecords = async (req, res) => {
 const getUfmRecordById = async (req, res, ufmProfileId) => {
     let response = await UFMProfile.findOne( {
         where: { ufm_profile_id: ufmProfileId },
-        attributes: ufmProfileColumns
+        attributes: ufmProfileColumns,
+        include: [
+          {
+            model: Tenant,
+            "as": "ufm_profile_primary_tenant",
+            attributes: [
+              "tenant_id",
+              "tenant_name",
+              "tenant_description",
+            ]
+          },
+          {
+            model: Tenant,
+            "as": "ufm_profile_secondary_tenant",
+            attributes: [
+              "tenant_id",
+              "tenant_name",
+              "tenant_description",
+            ]
+          },
+          {
+            model: GitRepository,
+            attributes: [
+              "gr_id",
+              "gr_owner_name",
+              "gr_name",
+              "gr_description",
+            ]
+          }
+        ]
     })
 
     if (!response) {

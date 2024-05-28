@@ -2,6 +2,7 @@
 const { DataTypes, Model } = require('sequelize');
 const sequelize = require('../dbconfig/config');
 const UFMFailoverConfigState = require('./UFM/ufmFailoverConfigState');
+const Tenant = require('./tenant');
 
 class UFMProfile extends Model {}
 
@@ -15,7 +16,7 @@ UFMProfile.init({
         type: DataTypes.STRING(150),
         allowNull: true,
     },
-    ufm_profile_environment_id: {
+    ufm_profile_environment_id: { // taxonomy
         type: DataTypes.INTEGER,
         allowNull: true
     },
@@ -48,7 +49,7 @@ UFMProfile.init({
     modelName: 'UFMProfile',
     tableName: 'ufm_profile',
     createdAt: 'created_on', 
-    updatedAt: 'modified_on', // check whether it is being updated properly in a put call
+    updatedAt: 'modified_on', 
     timestamps: true 
 });
 
@@ -56,6 +57,5 @@ module.exports = UFMProfile;
 
 UFMProfile.hasMany(  UFMFailoverConfigState , { foreignKey: "ufm_profile_id"} );
 UFMFailoverConfigState.belongsTo( UFMProfile,{ foreignKey: "ufm_profile_id"} );
-
 
 

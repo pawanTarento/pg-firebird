@@ -31,8 +31,19 @@ const getTaxonomyRecordsByCode = (req, res) => {
     }
 }
 
+const getTaxonomyRecordsByType = (req, res) => {
+    const { typeRequestList } = req.body;
+    try {
+        taxonomyService.getTaxonomyListByType(req, res, typeRequestList);        
+
+    } catch(error) {
+        console.log('Error in function getAllTaxonomyRecords: ', error)
+    }
+}
+
 module.exports = {
     getAllTaxonomyRecords,
     getAllTaxonomyGroupWiseRecords,
-    getTaxonomyRecordsByCode
+    getTaxonomyRecordsByCode,
+    getTaxonomyRecordsByType
 }

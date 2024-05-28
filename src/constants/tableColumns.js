@@ -90,7 +90,32 @@ const UFMFailoverConfigStateTableColumns = [
     "modified_on"
 ];
 
-const UFMFailoverConfigTableColumns=[
+// const UFMFailoverConfigTableColumns=[
+//     "config_id",
+//     "config_state_id",
+//     "ufm_profile_id",
+//     "config_component_row_select",
+//     "config_component_group_name",
+//     "config_component_group_order",
+//     "config_component_position",
+//     "config_component_version",
+//     "config_component_name",
+//     "config_component_id",
+//     "config_component_package_id",
+//     "config_component_resource_id",
+//     "config_component_description",
+//     "config_component_short_text",
+//     "config_component_mode",
+//     "config_component_created_by",
+//     "config_component_created_on",
+//     "config_component_modified_by",
+//     "config_component_modified_on",
+//     "config_timestamp",
+//     "is_draft",
+//     "is_deleted"
+// ]
+
+const UFMFailoverConfigTableColumns = [
     "config_id",
     "config_state_id",
     "ufm_profile_id",
@@ -98,22 +123,37 @@ const UFMFailoverConfigTableColumns=[
     "config_component_group_name",
     "config_component_group_order",
     "config_component_position",
-    "config_component_version",
-    "config_component_name",
+    "config_package_id",
+    "config_package_name",
+    "config_package_version",
+    "config_package_description",
+    "config_package_short_text",
+    "config_package_supported_platform",
     "config_component_id",
-    "config_component_package_id",
+    "config_component_name",
+    "config_component_dt_version",
+    "config_component_rt_version",
     "config_component_resource_id",
     "config_component_description",
-    "config_component_short_text",
-    "config_component_mode",
+    "config_component_status",
+    "config_component_status_text",
+    "config_component_deployed_by",
+    "config_component_deployed_on",
+    "config_timestamp",
+    "ufm_profile_runtime_map_id",
+    "primary_runtime_id",
+    "primary_runtime_display_name",
+    "primary_runtime_type",
+    "primary_runtime_type_id",
+    "primary_runtime_state",
     "config_component_created_by",
     "config_component_created_on",
     "config_component_modified_by",
     "config_component_modified_on",
-    "config_timestamp",
     "is_draft",
     "is_deleted"
-]
+];
+
 
 module.exports = {
     userMasterColumns,

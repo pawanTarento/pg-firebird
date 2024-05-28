@@ -1,6 +1,7 @@
 // tenant.js
 const { DataTypes, Model } = require('sequelize');
 const sequelize = require('../dbconfig/config');
+const UFMProfile = require('./ufmProfile');
 
 class Tenant extends Model {}
 
@@ -65,6 +66,16 @@ Tenant.init({
     modified_by: {
         type: DataTypes.INTEGER,
         allowNull: true
+    },
+    created_on: {
+        type: DataTypes.BIGINT,
+        allowNull: true, 
+        defaultValue: () => Math.floor(Date.now() / 1000)
+    },
+    modified_on: {
+        type: DataTypes.BIGINT,
+        allowNull: true, 
+        defaultValue: () => Math.floor(Date.now() / 1000)
     }
 }, {
     sequelize,
@@ -72,11 +83,22 @@ Tenant.init({
     tableName: 'Tenant',
     createdAt: 'created_on', 
     updatedAt: 'modified_on', 
-    timestamps: true // If you want Sequelize to not automatically manage createdAt and updatedAt columns
+    timestamps: true, // If you want Sequelize to not automatically manage createdAt and updatedAt columns
+    hooks: {
+        beforeCreate: (record) => {
+            record.created_on = Math.floor(Date.now() / 1000);
+            record.modified_on = Math.floor(Date.now() / 1000);
+        },
+        beforeUpdate: (record) => {
+            record.modified_on = Math.floor(Date.now() / 1000);
+        }
+    }
 });
 
 module.exports = Tenant;
 
 // Tenant.sync({ force: true })
 
+UFMProfile.belongsTo( Tenant, {foreignKey: "ufm_profile_primary_tenant_id", as: "ufm_profile_primary_tenant" });
+UFMProfile.belongsTo( Tenant, {foreignKey: "ufm_profile_secondary_tenant_id", as: "ufm_profile_secondary_tenant" });
 
