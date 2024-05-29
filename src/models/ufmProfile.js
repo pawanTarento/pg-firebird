@@ -1,4 +1,3 @@
-// tenant.js
 const { DataTypes, Model } = require('sequelize');
 const sequelize = require('../dbconfig/config');
 const UFMFailoverConfigState = require('./UFM/ufmFailoverConfigState');

@@ -1,50 +1,50 @@
 const ufmProfileRuntimeService = require("../services/ufmProfileRuntimeMapService")
-const getAllUfmProfileRuntimeRecords = (req,res) => {
+const getAllUfmProfileRuntimeMapRecords = (req,res) => {
     try{
-        ufmProfileRuntimeService.getAllUfmRuntimeRecords(req,res)
+        ufmProfileRuntimeService.getAllUfmRuntimeMapRecords(req,res)
      
     } catch(error) {
-        console.log('Error in controller -> getAllUfmProfileRuntimeRecords: ', error)
+        console.log('Error in controller -> getAllUfmProfileRuntimeMapRecords: ', error)
     }
 }
 
-const addUfmProfileRuntimeRecord = (req, res) => {
+const addUfmProfileRuntimeMapRecord = (req, res) => {
     try{
-        ufmProfileRuntimeService.addUfmRuntimeRecord(req,res)
+        ufmProfileRuntimeService.addUfmRuntimeMapRecord(req,res)
       
     } catch(error) {
-        console.log('Error in controller -> addUfmProfileRuntimeRecord: ', error)
+        console.log('Error in controller -> addUfmProfileRuntimeMapRecord: ', error)
     }
 }
 
-const removeUfmProfileRuntimeRecord = (req, res) => {
+const removeUfmProfileRuntimeMapRecord = (req, res) => {
     const ufmProfileRuntimeMapId = req.params.ufmProfileRuntimeMapId;
     try{
-        ufmProfileRuntimeService.removeUfmRuntimeRecord(req, res, ufmProfileRuntimeMapId)
+        ufmProfileRuntimeService.removeUfmRuntimeMapRecord(req, res, ufmProfileRuntimeMapId)
        
     } catch(error) {
-        console.log('Error in controller -> removeUfmProfileRuntimeRecord: ', error)
+        console.log('Error in controller -> removeUfmProfileRuntimeMapRecord: ', error)
     }
 }
-const getUfmProfileRuntimeByUfmProfileId = ( req, res) => {
+const getUfmProfileRuntimeMapByUfmProfileId = ( req, res) => {
     try{
-        ufmProfileRuntimeService.getUfmRuntimeRecordByUfmProfileId(req,res)
+        ufmProfileRuntimeService.getUfmRuntimeMapRecordByUfmProfileId(req,res)
     } catch(error) {
-        console.log('Error in controller -> getUfmProfileRuntimeById: ', error)
+        console.log('Error in controller -> getUfmProfileRuntimeMapById: ', error)
     }
 }
-const updateUfmProfileRuntimeRecord = (req, res) => {
+const updateUfmProfileRuntimeMapRecord = (req, res) => {
     try{
-        ufmProfileRuntimeService.updateUfmRuntimeRecord(req,res)
+        ufmProfileRuntimeService.updateUfmRuntimeMapRecord(req,res)
     } catch(error) {
-        console.log('Error in controller -> updateUfmProfileRuntimeRecord: ', error)
+        console.log('Error in controller -> updateUfmProfileRuntimeMapRecord: ', error)
     }
 }
 
 module.exports = {
-    getAllUfmProfileRuntimeRecords,
-    addUfmProfileRuntimeRecord,
-    removeUfmProfileRuntimeRecord,
-    getUfmProfileRuntimeByUfmProfileId,
-    updateUfmProfileRuntimeRecord
+    getAllUfmProfileRuntimeMapRecords,
+    addUfmProfileRuntimeMapRecord,
+    removeUfmProfileRuntimeMapRecord,
+    getUfmProfileRuntimeMapByUfmProfileId,
+    updateUfmProfileRuntimeMapRecord
 }

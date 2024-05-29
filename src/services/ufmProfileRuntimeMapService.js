@@ -4,7 +4,7 @@ const UFMProfile = require("../models/ufmProfile");
 
 // We are doing a soft delete in case of UFM profile runtime map table, so is_deleted: false by default
 
-const getAllUfmRuntimeRecords = async (req, res) => {
+const getAllUfmRuntimeMapRecords = async (req, res) => {
     try {
 
      let response  = await UFMProfileRuntimeMap.findAll({
@@ -24,11 +24,11 @@ const getAllUfmRuntimeRecords = async (req, res) => {
 
      return res.status(200).json({ data: response})
     } catch(error) {
-        console.log('Error in service fn: getAllUfmRuntimeRecords', error);
+        console.log('Error in service fn: getAllUfmRuntimeMapRecords', error);
     }
 }
 
-const addUfmRuntimeRecord = async (req, res) => {
+const addUfmRuntimeMapRecord = async (req, res) => {
     try {
         const { 
             ufm_profile_id,
@@ -69,7 +69,7 @@ const addUfmRuntimeRecord = async (req, res) => {
 }
 
 // Doing a soft delete in this function
-const removeUfmRuntimeRecord = async (req, res, ufmProfileRuntimeMapId) => {
+const removeUfmRuntimeMapRecord = async (req, res, ufmProfileRuntimeMapId) => {
 
     console.log('ufmProfileRuntimeMapId: ', ufmProfileRuntimeMapId)
     try {
@@ -96,7 +96,7 @@ const removeUfmRuntimeRecord = async (req, res, ufmProfileRuntimeMapId) => {
 
 }
 
-const getUfmRuntimeRecordByUfmProfileId = async (req, res) => {
+const getUfmRuntimeMapRecordByUfmProfileId = async (req, res) => {
     const ufmProfileId = req.params.ufmProfileId;
     console.log('ufmProfileId: ', ufmProfileId);
     try {
@@ -136,11 +136,11 @@ const getUfmRuntimeRecordByUfmProfileId = async (req, res) => {
             return res.status(200).json({ data: response })
         
     } catch(error) {
-        console.log('Error in service fn: getUfmRuntimeRecordByUfmProfileId', error);
+        console.log('Error in service fn: getUfmRuntimeMapRecordByUfmProfileId', error);
     }
 }
 
-const updateUfmRuntimeRecord = async (req, res, ) => {
+const updateUfmRuntimeMapRecord = async (req, res, ) => {
  
         const { ufm_profile_runtime_map_id } = req.body;
         console.log('ufm_profile_runtime_map_id: ', ufm_profile_runtime_map_id);
@@ -152,7 +152,7 @@ const updateUfmRuntimeRecord = async (req, res, ) => {
                 },
               });
             if (!ufmProfileRuntimeRecord) {
-              res.status(404).json({ error: 'UFM Profile Runtime record not found...' });
+              res.status(404).json({ error: 'UFM Profile Runtime Map record not found...' });
             } else {
               const { 
                 ufm_profile_id,
@@ -195,9 +195,9 @@ const updateUfmRuntimeRecord = async (req, res, ) => {
 
 
 module.exports = {
-    getAllUfmRuntimeRecords,
-    addUfmRuntimeRecord,
-    removeUfmRuntimeRecord,
-    getUfmRuntimeRecordByUfmProfileId,
-    updateUfmRuntimeRecord
+    getAllUfmRuntimeMapRecords,
+    addUfmRuntimeMapRecord,
+    removeUfmRuntimeMapRecord,
+    getUfmRuntimeMapRecordByUfmProfileId,
+    updateUfmRuntimeMapRecord
 }
