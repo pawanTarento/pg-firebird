@@ -14,11 +14,11 @@ UserModel.init({
         type: DataTypes.STRING(250),
         allowNull: true
     },
-    firstname: {
+    first_name: {
         type: DataTypes.STRING(150),
         allowNull: true
     },
-    lastname: {
+    last_name: {
         type: DataTypes.STRING(100),
         allowNull: true
     },
@@ -30,31 +30,51 @@ UserModel.init({
         type: DataTypes.STRING(250),
         allowNull: true
     },
-    is_active: {
-        type:DataTypes.BOOLEAN,
-        allowNull: true
-    },
     additional_param1: {
         type: DataTypes.STRING(250),
         allowNull: true
     },
-    role: {
-        type: DataTypes.STRING,
+    created_on: {
+        type: DataTypes.BIGINT,
+        allowNull: true, 
+        defaultValue: () => Math.floor(Date.now() / 1000)
+    },
+    created_by: {
+        type: DataTypes.INTEGER,
         allowNull: true
     },
-    isAdmin: {
-        type: DataTypes.BOOLEAN,
+    modified_on: {
+        type: DataTypes.BIGINT,
+        allowNull: true, 
+        defaultValue: () => Math.floor(Date.now() / 1000)
+    },
+    modified_by:{
+        type: DataTypes.INTEGER,
         allowNull: true
-    }
+    },
+    is_active: {
+        type:DataTypes.BOOLEAN,
+        allowNull: true
+    },
+
 }, {
     sequelize,
     modelName: 'UserMaster',
-    tableName: 'user_master',
+    tableName: 'user',
     createdAt: 'created_on', 
     updatedAt: 'modified_on', 
-    timestamps: true // If you want Sequelize to not automatically manage createdAt and updatedAt columns
+    timestamps: true, 
+    hooks:{
+        beforeCreate: (record) => {
+            record.created_on = Math.floor(Date.now() / 1000);
+            record.modified_on = Math.floor(Date.now() / 1000);
+        },
+        beforeUpdate: (record) => {
+            record.modified_on = Math.floor(Date.now() / 1000);
+        }
+    }
 });
 
 module.exports = UserModel;
 
-// UserModel.sync({ force: false });
+UserModel.sync({ force: false });

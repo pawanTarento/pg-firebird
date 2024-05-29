@@ -18,7 +18,8 @@ router.use("/userMaster", require("./routes/userMasterRouter"));
 router.use('/tokens', require("./routes/tokenProviderRouter"));
 router.use("/failoverConfig", require("./routes/ufmFailoverConfigRouter"));
 router.use("/failoverConfigState",require("./routes/ufmFailoverConfigStateRouter"));
-router.use("/runtime", require("./routes/runtimeArtifactsRouter"))
+router.use("/runtime", require("./routes/runtimeArtifactsRouter"));
+router.use("/ufmProfileRuntime", require("./routes/ufmProfileRuntimeMapRouter"));
 
 
 module.exports = router;

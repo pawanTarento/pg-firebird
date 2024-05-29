@@ -56,28 +56,28 @@ const removeUserRecord = async (req, res, id) => {
 const addUserRecord = async ( req, res) => {
     try {
         const { 
-            email_id,
-            firstname,
-            lastname,
-            display_name,
-            external_id,
-            is_active,
-            additional_param1,
-            role,
-            isAdmin
+          email_id,
+          first_name,
+          last_name,
+          display_name,
+          external_id,
+          additional_param1,
+          created_by,
+          modified_by,
+          is_active
         } = req.body;
 
         const userRecord = await UserModel.create({ 
         
-            email_id,
-            firstname,
-            lastname,
-            display_name,
-            external_id,
-            is_active,
-            additional_param1,
-            role,
-            isAdmin
+          email_id,
+          first_name,
+          last_name,
+          display_name,
+          external_id,
+          additional_param1,
+          created_by,
+          modified_by,
+          is_active
         });
         res.status(201).json(userRecord);
       } catch (error) {
@@ -95,27 +95,26 @@ const updateUserRecord = async (req, res) => {
           res.status(404).json({ error: 'User Record not found...' });
         } else {
           const {    
-            user_id,
-            email_id,
-            firstname,
-            lastname,
-            display_name,
-            external_id,
-            is_active,
-            additional_param1,
-            role,
-            isAdmin }= req.body;
+          email_id,
+          first_name,
+          last_name,
+          display_name,
+          external_id,
+          additional_param1,
+          created_by,
+          modified_by,
+          is_active }= req.body;
           await userRecord.update({    
-            user_id,
             email_id,
-            firstname,
-            lastname,
-            display_name,
-            external_id,
-            is_active,
-            additional_param1,
-            role,
-            isAdmin });
+          first_name,
+          last_name,
+          display_name,
+          external_id,
+          additional_param1,
+          created_by,
+          modified_by,
+          is_active
+        });
           res.json(userRecord);
         }
       } catch (error) {

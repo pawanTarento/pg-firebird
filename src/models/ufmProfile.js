@@ -3,6 +3,7 @@ const { DataTypes, Model } = require('sequelize');
 const sequelize = require('../dbconfig/config');
 const UFMFailoverConfigState = require('./UFM/ufmFailoverConfigState');
 const Tenant = require('./tenant');
+const UFMProfileRuntimeMap = require('./UFM/ufmProfileRuntimeMap');
 
 class UFMProfile extends Model {}
 
@@ -57,5 +58,6 @@ module.exports = UFMProfile;
 
 UFMProfile.hasMany(  UFMFailoverConfigState , { foreignKey: "ufm_profile_id"} );
 UFMFailoverConfigState.belongsTo( UFMProfile,{ foreignKey: "ufm_profile_id"} );
-
+UFMProfile.hasMany(UFMProfileRuntimeMap, {foreignKey: "ufm_profile_id"});
+UFMProfileRuntimeMap.belongsTo( UFMProfile, { foreignKey: "ufm_profile_id"});
 

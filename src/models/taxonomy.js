@@ -73,6 +73,10 @@ Taxonomy.init({
     created_by: {
         type: DataTypes.INTEGER,
         allowNull: true
+    },
+    created_on: {
+        type: DataTypes.BIGINT,
+        allowNull: true
     }
 
 }, {

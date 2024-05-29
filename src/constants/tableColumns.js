@@ -1,14 +1,16 @@
 const userMasterColumns =[
     "user_id",
     "email_id",
-    "firstname",
-    "lastname",
+    "first_name",
+    "last_name",
     "display_name",
     "external_id",
-    "is_active",
     "additional_param1",
-    "role",
-    "isAdmin"
+    "created_on",
+    "created_by",
+    "modified_on",
+    "modified_by",
+    "is_active"
 ];
 
 const gitMasterColumns = [
@@ -154,6 +156,26 @@ const UFMFailoverConfigTableColumns = [
     "is_deleted"
 ];
 
+const UFMProfileRuntimeTableColumns = [
+    "ufm_profile_runtime_map_id",
+    "ufm_profile_id",
+    "primary_runtime_id",
+    "primary_runtime_display_name",
+    "primary_runtime_type",
+    "primary_runtime_type_id",
+    "primary_runtime_state",
+    "secondary_runtime_id",
+    "secondary_runtime_display_name",
+    "secondary_runtime_type",
+    "secondary_runtime_type_id",
+    "secondary_runtime_state",
+    "created_on",
+    "created_by",
+    "modified_on",
+    "modified_by",
+    "is_deleted"
+]
+
 
 module.exports = {
     userMasterColumns,
@@ -162,5 +184,6 @@ module.exports = {
     tenantTableColumns,
     taxonomyTableColumns,
     UFMFailoverConfigStateTableColumns,
-    UFMFailoverConfigTableColumns
+    UFMFailoverConfigTableColumns,
+    UFMProfileRuntimeTableColumns
 }

@@ -65,15 +65,24 @@ const getTaxonomyListByCode = async ( req, res, codeRequestList ) => {
 
 const getTaxonomyListByType = async ( req, res, typeRequestList ) => {
     
-    try {
-        const response = await Taxonomy.findAll({
-            where: {
-                taxonomy_type : typeRequestList
+    const groupObjectsByTypeName = (objects) => {
+        const groupedData = {};
+    
+        objects.forEach(obj => {
+            if (!groupedData[obj.taxonomy_type]) {
+                groupedData[obj.taxonomy_type] = [];
             }
-        }); 
-        
-        return res.status(200).json({ data: response });
+            groupedData[obj.taxonomy_type].push(obj);
+        });
+    
+        return groupedData;
+    };
 
+    
+    try {
+        const response = await Taxonomy.findAll(); // Assuming you are using Sequelize
+        const groupedData = groupObjectsByTypeName(response);
+        return res.status(200).json( { data: groupedData })
     } catch (error) {
         console.error('Error fetching data:', error);
         return null;

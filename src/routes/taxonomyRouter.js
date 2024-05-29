@@ -12,6 +12,6 @@ router.route('/code')
     .post( taxonomyController.getTaxonomyRecordsByCode );
 
 router.route('/type')
-    .post( taxonomyController.getTaxonomyRecordsByType);
+    .get( taxonomyController.getTaxonomyRecordsByType);
 
 module.exports = router;
