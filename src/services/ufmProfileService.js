@@ -2,6 +2,7 @@ const UFMProfile = require("../models/ufmProfile");
 const { ufmProfileColumns, gitMasterColumns } = require("../constants/tableColumns");
 const Tenant = require("../models/tenant");
 const GitRepository = require("../models/gitRepository");
+const Taxonomy = require("../models/taxonomy");
 
 const getAllUfmRecords = async (req, res) => {
 
@@ -35,6 +36,14 @@ const getAllUfmRecords = async (req, res) => {
             "gr_name",
             "gr_description",
           ]
+        },
+        {
+          model:Taxonomy,
+          as: "environment_id"
+        },
+        {
+          model:Taxonomy,
+          as: "tenant_state"
         }
       ]
     })
@@ -76,6 +85,14 @@ const getUfmRecordById = async (req, res, ufmProfileId) => {
               "gr_name",
               "gr_description",
             ]
+          },
+          {
+            model:Taxonomy,
+            as: "environment_id"
+          },
+          {
+            model:Taxonomy,
+            as: "tenant_state"
           }
         ]
     })

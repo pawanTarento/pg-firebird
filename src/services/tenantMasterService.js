@@ -2,12 +2,31 @@ const Tenant = require("../models/tenant");
 const {tenantTableColumns} = require("../constants/tableColumns");
 const { encryptData, decryptData, getEncryptionIV } = require("../util/decode");
 const _ = require("lodash");
+const Taxonomy = require("../models/taxonomy");
 
 const getAllTenants = async (req, res) => {
 
     let response = await Tenant.findAll( {
         where: {},
-        attributes: _.without(tenantTableColumns, 'tenant_iv_salt', 'tenant_host_password')
+        attributes: _.without(tenantTableColumns, 'tenant_iv_salt', 'tenant_host_password'),
+        include: [
+          {
+            model: Taxonomy,
+            as: "tenant_environment"
+          },
+          {
+            model: Taxonomy,
+            as: "tenant_state"
+          },
+          {
+            model: Taxonomy,
+            as: "region_id"
+          },
+          {
+            model: Taxonomy,
+            as: "test_status"
+          }
+        ]
     })
 
     if (!response) {
@@ -20,7 +39,25 @@ const getAllTenants = async (req, res) => {
 const getTenantById = async (req, res, tenantId) => {
     let response = await Tenant.findOne( {
         where: { tenant_id: tenantId},
-        attributes: tenantTableColumns
+        attributes: tenantTableColumns,
+        include: [
+          {
+            model: Taxonomy,
+            as: "tenant_environment"
+          },
+          {
+            model: Taxonomy,
+            as: "tenant_state"
+          },
+          {
+            model: Taxonomy,
+            as: "region_id"
+          },
+          {
+            model: Taxonomy,
+            as: "test_status"
+          }
+        ]
     })
 
     if ( !response) {
@@ -99,17 +136,17 @@ const updateTenantDetails = async (req, res) => {
           let { 
             tenant_name,
             tenant_description,
-            tenant_region_id,
-            tenant_host_url,
-            tenant_host_token_api,
-            tenant_host_username,
+            // tenant_region_id,
+            // tenant_host_url,
+            // tenant_host_token_api,
+            // tenant_host_username,
             tenant_host_password,
-            tenant_iv_salt,
-            tenant_host_test_status_id,
-            tenant_host_test_status_on,
-            tenant_environment_id,
-            tenant_state_id,
-            created_by,
+            // tenant_iv_salt,
+            // tenant_host_test_status_id,
+            // tenant_host_test_status_on,
+            // tenant_environment_id,
+            // tenant_state_id,
+            // created_by,
             modified_by
           } = req.body;
 
@@ -120,17 +157,17 @@ const updateTenantDetails = async (req, res) => {
           await tenant.update({ 
             tenant_name,
             tenant_description,
-            tenant_region_id,
-            tenant_host_url,
-            tenant_host_token_api,
-            tenant_host_username,
+            // tenant_region_id,
+            // tenant_host_url,
+            // tenant_host_token_api,
+            // tenant_host_username,
             tenant_host_password: encryptedTenantHostPassword,
-            tenant_iv_salt,
-            tenant_host_test_status_id,
-            tenant_host_test_status_on,
-            tenant_environment_id,
-            tenant_state_id,
-            created_by,
+            // tenant_iv_salt,
+            // tenant_host_test_status_id,
+            // tenant_host_test_status_on,
+            // tenant_environment_id,
+            // tenant_state_id,
+            // created_by,
             modified_by,
            });
           res.json(tenant);
