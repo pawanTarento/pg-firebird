@@ -10,7 +10,11 @@ const userMasterColumns =[
     "created_by",
     "modified_on",
     "modified_by",
-    "is_active"
+    "is_active",
+    "is_admin",
+    "first_logged_on",
+    "last_logged_on",
+    "role"
 ];
 
 const gitMasterColumns = [

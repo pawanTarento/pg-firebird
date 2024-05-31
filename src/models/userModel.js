@@ -40,7 +40,7 @@ UserModel.init({
         defaultValue: () => Math.floor(Date.now() / 1000)
     },
     created_by: {
-        type: DataTypes.INTEGER,
+        type: DataTypes.STRING(40),
         allowNull: true
     },
     modified_on: {
@@ -49,14 +49,33 @@ UserModel.init({
         defaultValue: () => Math.floor(Date.now() / 1000)
     },
     modified_by:{
-        type: DataTypes.INTEGER,
+        type: DataTypes.STRING(40),
         allowNull: true
     },
     is_active: {
         type:DataTypes.BOOLEAN,
         allowNull: true
     },
-
+    is_admin: {
+        type: DataTypes.BOOLEAN,
+        allowNull: true,
+        defaultValue: false
+    },
+    first_logged_on: {
+        type: DataTypes.BIGINT,
+        allowNull: true,
+        defaultValue: () => Math.floor(Date.now() / 1000)
+    },
+    last_logged_on: {// keep it, but not in use
+        type: DataTypes.BIGINT,
+        allowNull: true,
+        defaultValue: null
+    },
+    role: {
+        type: DataTypes.STRING(120),
+        allowNull: true,
+        defaultValue: null
+    }
 }, {
     sequelize,
     modelName: 'UserMaster',
@@ -67,6 +86,7 @@ UserModel.init({
     hooks:{
         beforeCreate: (record) => {
             record.created_on = Math.floor(Date.now() / 1000);
+            record.first_logged_on = Math.floor( Date.now() / 1000);
             record.modified_on = Math.floor(Date.now() / 1000);
         },
         beforeUpdate: (record) => {

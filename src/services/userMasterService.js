@@ -55,17 +55,31 @@ const removeUserRecord = async (req, res, id) => {
 
 const addUserRecord = async ( req, res) => {
     try {
+
         const { 
           email_id,
           first_name,
           last_name,
           display_name,
-          external_id,
+          external_id, // EX234
           additional_param1,
           created_by,
           modified_by,
-          is_active
+          is_active,
+          is_admin,
+          role
         } = req.body;
+
+        // check if the external id exists, then dont add user, instead return "user exists"
+        let userResponse = await UserModel.findOne({
+          where: {
+            external_id: external_id
+          }
+        })
+
+        if(userResponse) {
+          return res.status(200).json({ message: "User already exists"})
+        }
 
         const userRecord = await UserModel.create({ 
         
@@ -77,7 +91,9 @@ const addUserRecord = async ( req, res) => {
           additional_param1,
           created_by,
           modified_by,
-          is_active
+          is_active,
+          is_admin,
+          role
         });
         res.status(201).json(userRecord);
       } catch (error) {
@@ -86,6 +102,7 @@ const addUserRecord = async ( req, res) => {
       }
 }
 
+// deprecated, as of now
 const updateUserRecord = async (req, res) => {
     const { user_id } = req.body;
     console.log('ID: ', user_id)
