@@ -110,7 +110,8 @@ const removeUfmRecord = async (req, res, ufmProfileId) => {
       res.status(404).json({ error: 'UFM Profile Record not found' });
     } else {
       await ufmProfileRecord.destroy();
-      res.status(204).end();
+      // res.status(204).end();
+      return res.status(204).json({message: "Record deleted successfully."})
     }
 }
 
@@ -123,16 +124,19 @@ const addUfmRecord = async ( req, res) => {
           ufm_profile_secondary_tenant_id,
           ufm_profile_gr_id,
           ufm_profile_tenant_state_id,
+          ufm_profile_source_runtime,
+          ufm_profile_destination_runtime,
           created_by,
           modified_by
         } = req.body;
 
         const ufmProfileRecord = await UFMProfile.create({ 
-          ufm_profile_id,
           ufm_profile_name,
           ufm_profile_environment_id,
           ufm_profile_primary_tenant_id, 
           ufm_profile_secondary_tenant_id,
+          ufm_profile_source_runtime,
+          ufm_profile_destination_runtime,
           ufm_profile_gr_id,
           ufm_profile_tenant_state_id,
           created_by,
@@ -159,6 +163,8 @@ const updateUfmRecord = async (req, res) => {
             ufm_profile_environment_id,
             ufm_profile_primary_tenant_id, 
             ufm_profile_secondary_tenant_id,
+            ufm_profile_source_runtime,
+            ufm_profile_destination_runtime,
             ufm_profile_gr_id,
             ufm_profile_tenant_state_id,
             created_by,
@@ -170,6 +176,8 @@ const updateUfmRecord = async (req, res) => {
             ufm_profile_environment_id,
             ufm_profile_primary_tenant_id, 
             ufm_profile_secondary_tenant_id,
+            ufm_profile_source_runtime,
+            ufm_profile_destination_runtime,
             ufm_profile_gr_id,
             ufm_profile_tenant_state_id,
             created_by,

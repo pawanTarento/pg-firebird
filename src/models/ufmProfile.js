@@ -4,6 +4,7 @@ const UFMFailoverConfigState = require('./UFM/ufmFailoverConfigState');
 const Tenant = require('./tenant');
 const UFMProfileRuntimeMap = require('./UFM/ufmProfileRuntimeMap');
 const Taxonomy = require('./taxonomy');
+const UFMSyncHeader = require('./UFM/ufmSyncHeader');
 
 class UFMProfile extends Model {}
 
@@ -38,6 +39,14 @@ UFMProfile.init({
         type: DataTypes.INTEGER,
         allowNull: true,
         defaultValue: 14001 // remove this later on
+    },
+    ufm_profile_source_runtime: {
+        type: DataTypes.STRING(60),
+        allowNull: true,
+    },
+    ufm_profile_destination_runtime: {
+        type: DataTypes.STRING(60),
+        allowNull: true,
     },
     created_on: {
         type: DataTypes.BIGINT,
@@ -84,3 +93,5 @@ UFMProfileRuntimeMap.belongsTo( UFMProfile, { foreignKey: "ufm_profile_id"});
 UFMProfile.belongsTo( Taxonomy, { foreignKey: "ufm_profile_environment_id", as: "environment_id"});
 
 UFMProfile.belongsTo( Taxonomy, { foreignKey: "ufm_profile_tenant_state_id", as : "tenant_state"});
+UFMSyncHeader.belongsTo( UFMProfile , { foreignKey: "ufm_profile_id"});
+UFMProfile.hasMany( UFMSyncHeader, { foreignKey: "ufm_profile_id"});
