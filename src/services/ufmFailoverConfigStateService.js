@@ -64,7 +64,8 @@ const deleteFailoverConfigStateRecord = async (req, res, configStateId) => {
           res.status(404).json({ error: 'configStateId not found for deletion' });
         } else {
           await response.destroy();
-          res.status(204).end();
+        //   res.status(204).end();
+        return res.status(204).json({message: "Record deleted successfully."})
         }
     } catch(error) {
         console.log('Error in service function: deleteFailoverConfigStateRecord: ', error);
