@@ -7,7 +7,7 @@ const router = express.Router();
 // router.use("/", require("./routes/healthRouter"));
 
 // Routes -> the sequence of routes is important
-router.use("/integrationPackages", require("./routes/integrationPackagesRouter"));
+router.use("/integrationPackages", require("./routes/integrationPackagesRouter")); // sync
 router.use("/gitRepository", require("./routes/gitRepositoryRouter"));
 router.use("/gitAction", require("./routes/gitActionRouter"));
 router.use("/tenantAction", require("./routes/tenantActionRouter"));
@@ -21,6 +21,11 @@ router.use("/failoverConfigState",require("./routes/ufmFailoverConfigStateRouter
 router.use("/runtimeArtifacts", require("./routes/runtimeArtifactsRouter")); // here
 router.use("/ufmProfileRuntime", require("./routes/ufmProfileRuntimeMapRouter"));
 router.use("/runtime", require("./routes/runtimeEnvironmentRouter"));
+router.use("/keystore", require("./routes/keystoreRouter"));
+router.use("/userCredentials", require("./routes/userCredentialsRouter"));
+router.use("/OAuth2Credentials", require("./routes/OAuth2CredentialsRouter"));
+router.use("/variables", require("./routes/variablesRouter"));
+router.use("/numberRanges", require("./routes/numberRangesRouter"));
 
 
 module.exports = router;

@@ -26,16 +26,30 @@ async function getOAuth(inputCredentials) {
     }
 }
 
-async function getBearerToken(tenantResponse) {
-    const authCredentials = {
-        tokenEndpoint: tenantResponse.tenant_host_token_api,
-        clientId: tenantResponse.tenant_host_username,
-        clientSecret: decryptData (
-            tenantResponse.tenant_host_password,
-            getEncryptionIV(tenantResponse.tenant_iv_salt)
-        )
-    };
-    return getOAuth(authCredentials);
+// This function is same as getOAuth function above, made it in order to logically keep Iflow cred auth separate
+async function getOAuthForIFlow(inputCredentials) {
+    const tokenEndpoint = inputCredentials.tokenEndpoint;
+    const clientId = inputCredentials.clientId; 
+    const clientSecret = inputCredentials.clientSecret;
+
+    // Encode client ID and client secret in Base64
+    const authHeader = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
+
+    try {
+        const response = await axios.post(tokenEndpoint, null, {
+            headers: {
+                'Authorization': `Basic ${authHeader}`,
+                'Content-Type': 'application/x-www-form-urlencoded' // Required for token endpoint
+            },
+            params: {
+                'grant_type': 'client_credentials'
+            }
+        });
+        return response.data.access_token;
+    } catch (error) {
+        console.error('Error getting access token:', error);
+        return null;
+    }
 }
 
 async function getBearerToken(tenantResponse) {
@@ -47,7 +61,21 @@ async function getBearerToken(tenantResponse) {
             getEncryptionIV(tenantResponse.tenant_iv_salt)
         )
     };
+    console.log('authCredentials: ', authCredentials);
     return getOAuth(authCredentials);
+}
+
+// this is for the utils to set variables, to get Password (UserCredential), ClientSecret(OAuth2)
+async function getBearerTokenForIFlow(tenantResponse) {
+    const authCredentials = {
+        tokenEndpoint: tenantResponse.tenant_util_token_url,
+        clientId: tenantResponse.tenant_util_client_id,
+        clientSecret: decryptData (
+            tenantResponse.tenant_util_client_secret,
+            getEncryptionIV(tenantResponse.tenant_util_iv_salt)
+        )
+    };
+    return getOAuthForIFlow(authCredentials);
 }
 
 async function getBearerTokenForTenants (tenantOneId, tenantTwoId) {
@@ -120,5 +148,7 @@ module.exports = {
     getOAuthTenantTwo,
     // getOAuthGit,
     getBearerTokenForTenants,
-    getOAuth
+    getOAuth,
+    getOAuthForIFlow,
+    getBearerTokenForIFlow
 }
