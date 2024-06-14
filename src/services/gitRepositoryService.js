@@ -2,12 +2,23 @@ const GitRepository = require("../models/gitRepository");
 const { gitMasterColumns } = require("../constants/tableColumns");
 const { encryptData, decryptData, getEncryptionIV } = require("../util/decode");
 const _ = require("lodash");
+const Taxonomy = require("../models/taxonomy");
 
 const getAllGitRecords = async (req, res) => {
 
     let response = await GitRepository.findAll( {
         where: {},
-        attributes: _.without(gitMasterColumns, 'gr_client_secret', 'gr_iv_salt')
+        attributes: _.without(gitMasterColumns, 'gr_client_secret', 'gr_iv_salt'),
+        include: [
+        {
+          model: Taxonomy,
+          as : "git_environment"
+        },
+        {
+          model: Taxonomy,
+          as: "git_state"
+        }
+      ]
     })
 
     if (!response) {
@@ -20,7 +31,17 @@ const getAllGitRecords = async (req, res) => {
 const getGitRecordById = async (req, res, grId) => {
     let response = await GitRepository.findOne( {
         where: { gr_id: grId},
-        attributes: gitMasterColumns
+        attributes: gitMasterColumns,
+        include: [
+          {
+            model: Taxonomy,
+            as : "git_environment"
+          },
+          {
+            model: Taxonomy,
+            as: "git_state"
+          }
+        ]
     })
 
     if (!response) {
@@ -37,7 +58,8 @@ const removeGitRecord = async (req, res, grId) => {
       res.status(404).json({ error: 'Git Record not found' });
     } else {
       await gitRecord.destroy();
-      res.status(204).end();
+      // res.status(204).end();
+      return res.status(204).json({message: "Record deleted successfully."})
     }
 }
 

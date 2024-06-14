@@ -1,8 +1,10 @@
 const axios = require("axios");
 
-const axiosInstance = (connect) => {
-  
-    let headerObject = {};
+const axiosInstance = (connect, calledFrom = "default") => {
+  console.log(
+    'Called from', calledFrom
+  )
+    let headerObject = {}; 
     // let timeout = 1000;
     if (!connect.headers) {
         console.log('\nNo headers provided')
@@ -12,8 +14,16 @@ const axiosInstance = (connect) => {
                 'Authorization': `Bearer ${connect.token}`
             }
     } 
-
-    // i
+    if (connect.hasOwnProperty('headers')) {
+      console.log('Has own property headers');
+     headerObject = {
+      ...connect.headers,
+      'Authorization': `Bearer ${connect.token}`
+     }
+    
+    }
+    // console.log('Header object', headerObject)
+    
     const config = {
       baseURL: connect.url,
       // timeout: timeout,
@@ -26,7 +36,6 @@ const axiosInstance = (connect) => {
       config.responseType = connect.responseType;
     }
 
-    console.log('CONFIG: ', {...config, headers: config.headers.Accept})
     const instance = axios.create(config);
 
       return instance;

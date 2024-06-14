@@ -1,7 +1,7 @@
-// gitModel.js
 const { DataTypes, Model } = require('sequelize');
 const sequelize = require('../dbconfig/config');
 const UFMProfile = require('./ufmProfile');
+const Taxonomy = require('./taxonomy');
 
 class GitRepository extends Model {}
 
@@ -23,7 +23,7 @@ GitRepository.init({
         type: DataTypes.STRING(250),
         allowNull: true
     },
-    gr_environment_id: {
+    gr_environment_id: { // linked to taxonomy
         type: DataTypes.INTEGER,
         allowNull: true
     },
@@ -51,13 +51,23 @@ GitRepository.init({
         type: DataTypes.STRING(150),
         allowNull: true
     },
-    gr_state_id: {
+    gr_state_id: { // linked to taxonomy
         type: DataTypes.INTEGER,
         allowNull: true
+    },
+    created_on: {
+        type: DataTypes.BIGINT,
+        allowNull: true,
+        defaultValue: () => Math.floor(Date.now() / 1000)
     },
     created_by: {
         type: DataTypes.INTEGER,
         allowNull: true
+    },
+    modified_on: {
+        type: DataTypes.BIGINT,
+        allowNull: true,
+        defaultValue: () => Math.floor(Date.now() / 1000)
     },
     modified_by: {
         type: DataTypes.INTEGER,
@@ -69,10 +79,21 @@ GitRepository.init({
     tableName: 'git_repository',
     createdAt: 'created_on', 
     updatedAt: 'modified_on', 
-    timestamps: true // If you want Sequelize to not automatically manage createdAt and updatedAt columns
+    timestamps: true, 
+    hooks: {
+        beforeCreate: (record) => {
+            record.created_on = Math.floor(Date.now() / 1000);
+            record.modified_on = Math.floor(Date.now() / 1000);
+        },
+        beforeUpdate: (record) => {
+            record.modified_on = Math.floor(Date.now() / 1000);
+        }
+    }
 });
 
 module.exports = GitRepository;
 
-GitRepository.sync({ force: false });
-UFMProfile.belongsTo( GitRepository, { foreignKey: "ufm_profile_gr_id"})
+UFMProfile.belongsTo( GitRepository, { foreignKey: "ufm_profile_gr_id"});
+
+GitRepository.belongsTo( Taxonomy, { foreignKey: "gr_environment_id", as: "git_environment"});
+GitRepository.belongsTo( Taxonomy, { foreignKey: "gr_state_id", as : "git_state"});

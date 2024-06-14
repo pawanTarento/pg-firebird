@@ -4,6 +4,7 @@ const GitRepository = require("../models/gitRepository");
 const { HttpStatusCode } = require("axios");
 const { decryptData, getEncryptionIV } = require("../util/decode");
 const { Octokit } = require("@octokit/rest");
+const { UNSUCCESSFUL_TEST_STATUS, SUCCESSFUL_TEST_STATUS } = require("../constants/taxonomyValues");
 
 async function copyPackagesToGitRepository(req,res) {
 //    let abc = await getOAuthGit()
@@ -29,6 +30,7 @@ const checkGitConnection = async (req, res, grId) => {
         console.log('\nGit record found');
         console.log('Response data: ', JSON.parse(JSON.stringify(response)));
         
+        console.log('VALUE: ', decryptData( response.gr_client_secret, getEncryptionIV(response.gr_iv_salt)) );
             // Create an Octokit instance
         const octokit = new Octokit({
             auth: decryptData( response.gr_client_secret, getEncryptionIV(response.gr_iv_salt) )// Replace with your own PAT
@@ -44,7 +46,7 @@ const checkGitConnection = async (req, res, grId) => {
           
         if (!gitRepoResponse || gitRepoResponse === null) {
             // Simulate failure for Tenant connection not OK
-            await GitRepository.update({ gr_state_id: 10002 }, {
+            await GitRepository.update({ gr_state_id: UNSUCCESSFUL_TEST_STATUS }, {
                 where: {
                     gr_id: grId
                 },
@@ -56,7 +58,7 @@ const checkGitConnection = async (req, res, grId) => {
 
         if (gitRepoResponse) {
             console.log('\nGot git repo response')
-            await GitRepository.update({ gr_state_id: 10001 }, {
+            await GitRepository.update({ gr_state_id: SUCCESSFUL_TEST_STATUS }, {
                 where: {
                     gr_id: grId
                 },

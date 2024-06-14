@@ -96,6 +96,17 @@ async function cloneIntegrationPackagesWithArtifacts (req, res) {
 
     }
 }
+
+async function copyConfigForArtifacts (req, res) {
+    try {
+        await integrationPackageService.copyConfigurations(req, res);
+    } catch(error) {
+        console.log('Error message: ', error.message);
+        console.log('error: stack', error.stack);
+        console.log("\nError in function: copyConfigForArtifacts");
+
+    }
+}
 // export all the modules
 module.exports = {
     getAllPackagesList,
@@ -103,5 +114,6 @@ module.exports = {
     getAllPackagesWithArtifactsInformation,
     getIntegrationPackageDetailsByPackageId,
     downloadIntegrationPackageBlob,
-    cloneIntegrationPackagesWithArtifacts
+    cloneIntegrationPackagesWithArtifacts,
+    copyConfigForArtifacts
 }

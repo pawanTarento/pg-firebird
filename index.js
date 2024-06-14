@@ -11,12 +11,16 @@ const UFMProfile = require("./src/models/ufmProfile");
 const UFMFailoverConfigState = require("./src/models/UFM/ufmFailoverConfigState");
 const UFMFailoverConfig = require("./src/models/UFM/ufmFailoverConfig");
 const UFMProfileRuntimeMap = require("./src/models/UFM/ufmProfileRuntimeMap");
+const UserModel = require("./src/models/userModel");
+const UFMSyncDetail = require("./src/models/UFM/ufmSyncDetail");
+const UFMSyncHeader = require("./src/models/UFM/ufmSyncHeader");
 
 
 // Production -> I will have to write a syncModel in order to make all tables simultaneously
 async function syncModels() {
     try {
         // await UFMProfile.sync({ force: true});
+        // await UserModel.sync( { force: true})
         // await Tenant.sync({ force: true });
         // await GitRepository.sync({ force: true});
 
@@ -25,6 +29,9 @@ async function syncModels() {
 
         // await UFMProfile.sync({ force: true});
         // await UFMProfileRuntimeMap.sync({ force: true});
+        // await UFMSyncHeader.sync({ force: true});
+        // await UFMSyncDetail.sync( { force: true});
+
     } catch (error) {
         console.error('Error syncing models:', error);
     }

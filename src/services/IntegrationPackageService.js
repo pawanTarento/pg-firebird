@@ -4,6 +4,11 @@ const {  encryptData, decryptData,getEncryptionIV } = require("../util/decode")
 const axios = require("axios");
 const Tenant = require("../models/tenant");
 const { artifactTypes } = require("../constants/apiEndpoints");
+const UFMProfile = require("../models/ufmProfile");
+const UFMSyncHeader = require("../models/UFM/ufmSyncHeader");
+const UFMSyncDetail = require("../models/UFM/ufmSyncDetail");
+const  sequelize  = require("../dbconfig/config");
+
 
 const baseURLTenantOne = "https://86f3b06dtrial.it-cpitrial06.cfapps.us10-001.hana.ondemand.com/api/v1";
 
@@ -173,6 +178,7 @@ async function getBearerToken(tenantResponse) {
 async function fetchIntegrationPackages(axiosInstance) {
     console.log('REACHINGHERE');
     const url = `/api/v1/IntegrationPackages`;
+    console.log('URL package: ', url)
     const response = await axiosInstance.get(url);
     return response;
 }
@@ -180,12 +186,15 @@ async function fetchIntegrationPackages(axiosInstance) {
 async function fetchArtifacts(axiosInstance, integrationPackages, artifactTypes) {
     const fetchArtifact = async (integrationPackage, artifactType) => {
         const url = `/api/v1/IntegrationPackages('${integrationPackage.Id}')/${artifactType}`;
+        console.log('\nURL : ', url)
         const response = await axiosInstance.get(url);
         return response.data.d.results.map(artifact => ({
             Id: artifact.Id,
             Name: artifact.Name,
             Type: artifactType,
-            Version: artifact.Version
+            Version: artifact.Version,
+            doesConfigExists: artifact.hasOwnProperty('Configurations') ? true: false,
+            // Configuration: artifact.Configurations
         }));
     };
 
@@ -226,7 +235,7 @@ const getPackagesWithArtifacts= async (tenantOneId, tenantTwoId, isCalledFromAPI
     ]);
 
     if (!tenantOneBearerToken || !tenantTwoBearerToken) {
-        return res.status(404).json({ error: `Error in getting Bearer token for one of the tenants`});
+        throw Error(`Error in getting Bearer token for one of the tenants`)
     }
     
     const axiosInstanceTenantOne = axiosInstance({
@@ -244,7 +253,7 @@ const getPackagesWithArtifacts= async (tenantOneId, tenantTwoId, isCalledFromAPI
     ]);
 
     if (responseTenantOne.error || responseTenantTwo.error) {
-        return res.status(500).json({ message: "Error in fetching package records for tenant(s)" });
+        throw Error("Error in fetching package records for tenant(s)")
     }
 
     const [tenantOnePackageArray, tenantTwoPackageArray] = await Promise.all([
@@ -262,8 +271,8 @@ const getPackagesWithArtifacts= async (tenantOneId, tenantTwoId, isCalledFromAPI
         return { mainResponseArray,axiosInstanceTenantOne, axiosInstanceTenantTwo }
     }
     } catch(error) {
-        console.log('Error in service function getPackagesWithArtifacts: ', error);
-        return [];
+        console.log('Error in service function getPackagesWithArtifacts: ', error.message);
+        return error.message;
     }   
 
 }
@@ -272,6 +281,9 @@ async function getPackagesWithArtifactsInfo (req, res ) {
     let isCalledFromAPI = true;
     let mainResponseArray = await getPackagesWithArtifacts(tenantOneId, tenantTwoId, isCalledFromAPI);
     
+   if (!Array.isArray(mainResponseArray)) {
+    return res.status(500).json({ error: mainResponseArray})
+   }
     return res.status(200).json({ data: mainResponseArray });
 
 }
@@ -304,19 +316,35 @@ function bifurcatePayload( payload ) {
 async function copyPackagesWithArtifacts(req, res) {
     // tenantOneId -> this is my source tenant
     // tenantTwoId -> this is my target tenant
-    const { tenantOneId, tenantTwoId } = req.params;
+    // const { tenantOneId, tenantTwoId } = req.params;
+    const { ufm_profile_id } = req.body;
+    const { component_type_id } = req.body;
+    const { user_id } = req.body;
     const { payload } = req.body;
 
     const [onlyPackagesToClone, packagesWithArtifacts] = bifurcatePayload(payload);
     console.log('onlyPackagesToClone: ', onlyPackagesToClone);
     console.log('packagesWithArtifacts: ', JSON.stringify(packagesWithArtifacts, null, 2));
-
+            // transaction will be available in the functions too
+            const transaction = await sequelize.transaction();
     try {
+        const ufmProfileResponse = await UFMProfile.findOne( {
+            where: {
+                ufm_profile_id: ufm_profile_id
+            }
+        })
+        if (!ufmProfileResponse) {
+            return res.status(400).json({ error: "UFM Profile id not found"})
+        }
+
         const [
              tenantOneBearerToken, tenantTwoBearerToken,
              tenantOneDbResponse, tenantTwoDbResponse 
-        ] = await getBearerTokenForTenants(tenantOneId, tenantTwoId);
+        ] = await getBearerTokenForTenants(
+            ufmProfileResponse.ufm_profile_primary_tenant_id, 
+            ufmProfileResponse.ufm_profile_secondary_tenant_id);
 
+        // return res.status(200).json({ message: "Hello, World!"})
         const axiosInstanceTenantOne = axiosInstance({
             url: tenantOneDbResponse.tenant_host_url,
             responseType: 'arraybuffer',
@@ -328,14 +356,37 @@ async function copyPackagesWithArtifacts(req, res) {
             token: tenantTwoBearerToken
         });
        
+
+     const updateResult =    await UFMSyncHeader.update(
+            { is_last_record: false },
+            { where: 
+                { 
+                ufm_profile_id: ufm_profile_id,
+                ufm_component_type_id: component_type_id,
+                is_last_record: true 
+            }
+            , transaction 
+        }
+          );
+
+          const newUFMSyncHeader = await UFMSyncHeader.create({
+            ufm_profile_id: ufm_profile_id,
+            ufm_component_type_id: component_type_id,
+            is_last_record: true,
+            created_by: user_id, // this is from FE
+            modified_by: user_id, // this is from FE
+          }, 
+          { transaction }
+        
+        );
+
         // Function to create packages with Artifacts
         const createPackageWithArtifacts = async (packageData, instanceOne, instanceTwo) => {
             try {
                 const { packageId, isExistingOnTarget, artifacts } = packageData;
                 if (!isExistingOnTarget) {
 
-                    const postRequest = await instanceTwo.post(`/api/v1/IntegrationPackages`, 
-                    JSON.stringify({
+                    let packageObject = {
                         "Id": packageId,
                         "Name": packageData.Name,
                         "Version": packageData.Version,
@@ -347,10 +398,18 @@ async function copyPackagesWithArtifacts(req, res) {
                         "Countries": packageData.Countries,
                         "Industries": packageData.Industries,
                         "LineOfBusiness": packageData.LineOfBusiness
-                    })
-                  );
-                    console.log("Package creation successful: ", postRequest.data);
-                    
+                    }
+                    console.log('packageObject: ', packageObject)
+                    try {
+                        const postRequest = await instanceTwo.post(`/api/v1/IntegrationPackages`, 
+                        JSON.stringify(packageObject)
+                      );
+                      console.log("Package creation successful: ", postRequest.data);
+
+                    } catch(error) {
+                        console.log('package error: ', error)
+                    }
+               
                 }
 
                 await Promise.all(artifacts.map(async (artifact) => {
@@ -368,10 +427,29 @@ async function copyPackagesWithArtifacts(req, res) {
                             ArtifactContent: Buffer.from(getRequest.data, 'binary').toString("base64")
                         })
                     );
+
+                    
+
+                    await UFMSyncDetail.create( {
+                        ufm_sync_header_id: newUFMSyncHeader.ufm_sync_header_id,
+                        ufm_sync_component_package_id: packageId,
+                        ufm_sync_component_package_name: packageData.Name,
+                        ufm_sync_component_package_desc: packageData.Description,
+                        ufm_sync_component_package_shorttext: packageData.ShortText,
+                        ufm_sync_component_package_version: packageData.Version,
+                        ufm_sync_component_id:artifact.Id ,
+                        ufm_sync_component_name: artifact.Name,
+                        ufm_sync_component_desc: "description",
+                        ufm_sync_component_version: artifact.Version,
+                        },
+                        { transaction }
+                    )
+                        
                     console.log("Artifact copy successful: ", artifact.Id);
                 }));
             } catch (error) {
                 console.error('Error processing artifact of package: ', packageData.packageId, error);
+                throw Error('Copying of artifact unsuccessful', packageData.packageId, error)
             }
         };
 
@@ -406,15 +484,23 @@ async function copyPackagesWithArtifacts(req, res) {
         
 
         // Create or copy packages concurrently
-        await Promise.all([
-            ...onlyPackagesToClone.map(packageData => createOrCopySinglePackage(packageData, axiosInstanceTenantOne, axiosInstanceTenantTwo)),
-            ...packagesWithArtifacts.map(packageData => createPackageWithArtifacts(packageData, axiosInstanceTenantOne, axiosInstanceTenantTwo))
-        ]);
+        try {
+            await Promise.all([
+                ...onlyPackagesToClone.map(packageData => createOrCopySinglePackage(packageData, axiosInstanceTenantOne, axiosInstanceTenantTwo)),
+                ...packagesWithArtifacts.map(packageData => createPackageWithArtifacts(packageData, axiosInstanceTenantOne, axiosInstanceTenantTwo))
+            ]);
+            await transaction.commit();
+            return res.status(200).json({ message: "Packages and Artifacts copied successfully" });
+        } catch(error) {
+            await transaction.rollback();
+            console.log('Error: in promise all : ', error);
+        }
 
-        return res.status(200).json({ message: "Packages and Artifacts copied successfully" });
+      
     } catch (error) {
+        // await transaction.rollback();
         console.error('Error in copyPackagesWithArtifacts: ', error.message);
-        return res.status(500).json({ error: 'Internal Server Error' });
+        return res.status(500).json({ error: 'Error in copyPackagesWithArtifacts',  });
     }
 }
 
@@ -433,13 +519,115 @@ function getArtifactEndpointString(type) {
     }
 }
 
+const copyConfigurations= async(req, res) => {
+    const {ufm_profile_id, component_type_id, packages } = req.body;
+
+    try {
+        const ufmProfileResponse = await UFMProfile.findOne( {
+            where: {
+                ufm_profile_id: ufm_profile_id
+            }
+        })
+        if (!ufmProfileResponse) {
+            return res.status(400).json({ error: "UFM Profile id not found"})
+        }
+
+        const [
+             tenantOneBearerToken, tenantTwoBearerToken,
+             tenantOneDbResponse, tenantTwoDbResponse 
+        ] = await getBearerTokenForTenants(
+            ufmProfileResponse.ufm_profile_primary_tenant_id, 
+            ufmProfileResponse.ufm_profile_secondary_tenant_id);
+
+        const axiosInstanceTenantOne = axiosInstance({
+            url: tenantOneDbResponse.tenant_host_url,
+            token: tenantOneBearerToken
+        });
+
+        const axiosInstanceTenantTwo = axiosInstance({
+            url: tenantTwoDbResponse.tenant_host_url,
+            token: tenantTwoBearerToken
+        });
+
+        const ufmSyncHeaderResponse = await UFMSyncHeader.findOne({
+            where: {
+                ufm_profile_id: ufm_profile_id,
+                ufm_component_type_id: component_type_id,
+                is_last_record: true
+            }
+        });
+
+        // if (!ufmSyncHeaderResponse) {
+        //     return res.status(200).json({error: "Sync the same packages and artifacts first before synchronising Configurations for the same"});
+        // }
+        
+        let failedConfigurations=[];
+        // // Process each package and artifact in parallel
+        const packagePromises = packages.map(pkg =>
+            pkg.artifacts.map(async artifact => {
+                const url = `/api/v1/IntegrationDesigntimeArtifacts(Id='${artifact.Id}',Version='${artifact.Version}')/Configurations`;
+                const response = await axiosInstanceTenantOne.get(url);
+                const configObjects = response.data.d.results;
+
+                const configPromises = configObjects.map(async configObj => {
+                const targetUrl = encodeURI( `/api/v1/IntegrationDesigntimeArtifacts(Id='${artifact.Id}',Version='${artifact.Version}')/$links/Configurations('${configObj.ParameterKey}')`);
+                    try {
+                     let updatedResponse =   await axiosInstanceTenantTwo.put(targetUrl,       
+                      {
+                            ParameterValue: configObj.ParameterValue,
+                            DataType: configObj.DataType
+                        });
+
+                        if (updatedResponse) {
+                            console.log('\n\n----------------------HAPPENED for: ', artifact.Id)
+                            const updateSyncHeaderDetail = await UFMSyncDetail.update({
+                                ufm_backup_component_config_moved: true,
+                                ufm_backup_component_config_moved_timestamp: Math.floor(Date.now() / 1000)
+                            }, {
+                                where: {
+                                    ufm_sync_header_id: ufmSyncHeaderResponse.ufm_sync_header_id,
+                                    ufm_sync_component_package_id: pkg.PackageId,
+                                    ufm_sync_component_package_version: pkg.Version,
+                                    ufm_sync_component_id: artifact.Id,
+                                    ufm_sync_component_version: artifact.Version
+                                }
+                            });
+                        } 
+                    } catch (error) {
+                        console.error(`Failed to copy configuration for ${artifact.Id} - ${configObj.ParameterKey}:`);
+                        failedConfigurations.push({
+                            artifactId: artifact.Id,
+                            parameterKey: configObj.ParameterKey,
+                            parameterValue: configObj.ParameterValue,
+                            dataType: configObj.DataType,
+                            error: error.message,
+                            errorMessage: `Failed to copy configuration for ${artifact.Id} - ${configObj.ParameterKey}:`
+                        });
+                    }
+                });
+
+                await Promise.all(configPromises);
+            })
+        );
+
+        await Promise.all(packagePromises.flat());
+
+ 
+        return res.status(200).json({ message: "Configurations copied successfully", failedConfigurations });
+        // return res.status(200).json({ message: "Hello, World!", failedConfigurations})
+    }  catch(error) {
+        console.log('Error in service copyConfigurations: ', error);
+        return res.status(500).json({ error: "Error in copying configurations"})
+       }
+
+}
 
 //----------------------------------------------------------------------------------------------//
 // Non exported functions:
 function mapToIntegrationPackage(input) {
 
     const mapKeys = [
-        "Id",
+    "Id",
     "Name",
     "ResourceId",
     "Description",
@@ -531,7 +719,8 @@ module.exports = {
     copyPackagesWithArtifacts,
     fetchArtifacts,
     fetchIntegrationPackages,
-    getPackagesWithArtifacts
+    getPackagesWithArtifacts,
+    copyConfigurations
 }
 
 
