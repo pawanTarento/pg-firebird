@@ -49,7 +49,8 @@ const removeUserRecord = async (req, res, id) => {
       res.status(404).json({ error: 'User Record not found' });
     } else {
       await userRecord.destroy();
-      res.status(204).end();
+      // res.status(204).end();
+      return res.status(204).json({message: "Record deleted successfully."})
     }
 }
 
@@ -78,7 +79,7 @@ const addUserRecord = async ( req, res) => {
         })
 
         if(userResponse) {
-          return res.status(200).json({ message: "User already exists"})
+          return res.status(200).json(userResponse)
         }
 
         const userRecord = await UserModel.create({ 
