@@ -65,6 +65,7 @@ const getTenantById = async (req, res, tenantId) => {
     }
     // Decrypt the tenant_host_password
     response.tenant_host_password = decryptData( response.tenant_host_password, getEncryptionIV(response.tenant_iv_salt));
+    response.tenant_util_client_secret = decryptData (response.tenant_util_client_secret, getEncryptionIV(response.tenant_util_iv_salt ))
     return res.status(200).json({ data: response });
 
 }
@@ -75,7 +76,8 @@ const removeTenant = async (req, res, tenantId) => {
       res.status(404).json({ error: 'Tenant not found' });
     } else {
       await tenant.destroy();
-      res.status(204).end();
+      // res.status(204).end();
+      return res.status(204).json({message: "Record deleted successfully."})
     }
 }
 
@@ -87,11 +89,17 @@ const addTenant = async ( req, res) => {
           tenant_region_id,
           tenant_host_url,
           tenant_host_token_api,
+          tenant_iflow_host_url,
           tenant_host_username,
           tenant_host_password,
           tenant_iv_salt,
           tenant_host_test_status_id,
           tenant_host_test_status_on,
+          tenant_util_host_url,
+          tenant_util_token_url,
+          tenant_util_client_id,
+          tenant_util_client_secret,
+          tenant_util_iv_salt,
           tenant_environment_id,
           tenant_state_id,
           created_by,
@@ -101,18 +109,24 @@ const addTenant = async ( req, res) => {
          // not using tenant_iv_salt for now, instead using it from our .env
          // later on, use tenant_iv_salt
          let encryptedTenantHostPassword = encryptData (tenant_host_password, getEncryptionIV(tenant_iv_salt));
-
+         let encryptedTenantUtilClientSecret = encryptData (tenant_util_client_secret, getEncryptionIV(tenant_util_iv_salt))
         const user = await Tenant.create({ 
           tenant_name,
           tenant_description,
           tenant_region_id,
           tenant_host_url,
           tenant_host_token_api,
+          tenant_iflow_host_url,
           tenant_host_username,
           tenant_host_password: encryptedTenantHostPassword,
           tenant_iv_salt,
           tenant_host_test_status_id,
           tenant_host_test_status_on,
+          tenant_util_host_url,
+          tenant_util_token_url,
+          tenant_util_client_id,
+          tenant_util_client_secret: encryptedTenantUtilClientSecret,
+          tenant_util_iv_salt,
           tenant_environment_id,
           tenant_state_id,
           created_by,
@@ -130,6 +144,8 @@ const updateTenantDetails = async (req, res) => {
     console.log('tenant_id: ', tenant_id)
     try {
         const tenant = await Tenant.findByPk(tenant_id);
+        const tenant_iv_salt = tenant.tenant_iv_salt;
+        const tenant_util_iv_salt = tenant.tenant_util_iv_salt;
         if (!tenant) {
           res.status(404).json({ error: 'Tenant not found...' });
         } else {
@@ -139,11 +155,17 @@ const updateTenantDetails = async (req, res) => {
             // tenant_region_id,
             // tenant_host_url,
             // tenant_host_token_api,
+            // tenant_iflow_host_url,
             // tenant_host_username,
             tenant_host_password,
             // tenant_iv_salt,
             // tenant_host_test_status_id,
             // tenant_host_test_status_on,
+            // tenant_util_host_url,
+            // tenant_util_token_url,
+            // tenant_util_client_id,
+            tenant_util_client_secret,
+            // tenant_util_iv_salt,
             // tenant_environment_id,
             // tenant_state_id,
             // created_by,
@@ -153,18 +175,24 @@ const updateTenantDetails = async (req, res) => {
          // not using tenant_iv_salt for now, instead using it from our .env
          // later on, use tenant_iv_salt
          let encryptedTenantHostPassword = encryptData (tenant_host_password, getEncryptionIV(tenant_iv_salt));
-
+         let encryptedTenantUtilClientSecret = encryptData (tenant_util_client_secret, getEncryptionIV(tenant_util_iv_salt))
           await tenant.update({ 
             tenant_name,
             tenant_description,
             // tenant_region_id,
             // tenant_host_url,
             // tenant_host_token_api,
+            // tenant_iflow_host_url,
             // tenant_host_username,
             tenant_host_password: encryptedTenantHostPassword,
-            // tenant_iv_salt,
+            tenant_iv_salt,
             // tenant_host_test_status_id,
             // tenant_host_test_status_on,
+            // tenant_util_host_url,
+            // tenant_util_token_url,
+            // tenant_util_client_id,
+            tenant_util_client_secret: encryptedTenantUtilClientSecret,
+            tenant_util_iv_salt,
             // tenant_environment_id,
             // tenant_state_id,
             // created_by,

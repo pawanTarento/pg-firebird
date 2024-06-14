@@ -42,6 +42,8 @@ const ufmProfileColumns = [
     "ufm_profile_secondary_tenant_id",
     "ufm_profile_gr_id",
     "ufm_profile_tenant_state_id",
+    "ufm_profile_source_runtime",
+    "ufm_profile_destination_runtime",
     "created_by",
     "modified_by", 
 ]
@@ -53,11 +55,17 @@ const tenantTableColumns = [
     "tenant_region_id",
     "tenant_host_url",
     "tenant_host_token_api",
+    "tenant_iflow_host_url",
     "tenant_host_username",
     "tenant_host_password",
     "tenant_iv_salt",
     "tenant_host_test_status_id",
     "tenant_host_test_status_on",
+    "tenant_util_host_url",
+    "tenant_util_token_url",
+    "tenant_util_client_id",
+    "tenant_util_client_secret",
+    "tenant_util_iv_salt",
     "tenant_environment_id",
     "tenant_state_id",
     "created_by",
@@ -95,31 +103,6 @@ const UFMFailoverConfigStateTableColumns = [
     "modified_by",
     "modified_on"
 ];
-
-// const UFMFailoverConfigTableColumns=[
-//     "config_id",
-//     "config_state_id",
-//     "ufm_profile_id",
-//     "config_component_row_select",
-//     "config_component_group_name",
-//     "config_component_group_order",
-//     "config_component_position",
-//     "config_component_version",
-//     "config_component_name",
-//     "config_component_id",
-//     "config_component_package_id",
-//     "config_component_resource_id",
-//     "config_component_description",
-//     "config_component_short_text",
-//     "config_component_mode",
-//     "config_component_created_by",
-//     "config_component_created_on",
-//     "config_component_modified_by",
-//     "config_component_modified_on",
-//     "config_timestamp",
-//     "is_draft",
-//     "is_deleted"
-// ]
 
 const UFMFailoverConfigTableColumns = [
     "config_id",
@@ -180,6 +163,18 @@ const UFMProfileRuntimeTableColumns = [
     "is_deleted"
 ]
 
+const UFMSyncHeaderTableColumns= [
+    "ufm_sync_header_id",
+    "ufm_profile_id",
+    "ufm_last_synced_on",
+    "ufm_component_type_id",
+    "is_last_record",
+    "created_on",
+    "created_by",
+    "modified_on",
+    "modified_by",
+]
+
 
 module.exports = {
     userMasterColumns,
@@ -189,5 +184,6 @@ module.exports = {
     taxonomyTableColumns,
     UFMFailoverConfigStateTableColumns,
     UFMFailoverConfigTableColumns,
-    UFMProfileRuntimeTableColumns
+    UFMProfileRuntimeTableColumns,
+    UFMSyncHeaderTableColumns
 }

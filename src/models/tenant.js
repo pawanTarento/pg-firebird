@@ -36,6 +36,10 @@ Tenant.init({
         type: DataTypes.STRING(2048),
         allowNull: true
     },
+    tenant_iflow_host_url: {
+        type: DataTypes.STRING(2048),
+        allowNull: true
+    },
     tenant_host_password: {
         type: DataTypes.STRING(300),
         allowNull: true
@@ -53,6 +57,26 @@ Tenant.init({
         type: DataTypes.BIGINT,
         allowNull: true,
         defaultValue: null
+    },
+    tenant_util_host_url: {
+        type: DataTypes.STRING(2048),
+        allowNull: true
+    },
+    tenant_util_token_url: {
+        type: DataTypes.STRING(2048),
+        allowNull: true
+    },
+    tenant_util_client_id: {
+        type: DataTypes.STRING(150),
+        allowNull: true
+    },
+    tenant_util_client_secret: {
+        type: DataTypes.STRING(400),
+        allowNull: true
+    },
+    tenant_util_iv_salt: {
+        type: DataTypes.STRING(150),
+        allowNull: true
     },
     tenant_environment_id: {
         type: DataTypes.INTEGER,
