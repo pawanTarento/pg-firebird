@@ -42,11 +42,15 @@ const getUserCredentials = async (req, res) => {
             await axiosInstanceTenantTwo.get("/api/v1/UserCredentials")
         ])
 
-       const mainResponseArray = {
-            tenantOneUserCredentials: mapToUserCredentials( userCredentialsTenantOneResponse.data.d.results ), 
-            tenantTwoUserCredentials: mapToUserCredentials( userCredentialsTenantTwoResponse.data.d.results )
-       }
+    //    const mainResponseArray = {
+    //         tenantOneUserCredentials: mapToUserCredentials( userCredentialsTenantOneResponse.data.d.results ), 
+    //         tenantTwoUserCredentials: mapToUserCredentials( userCredentialsTenantTwoResponse.data.d.results )
+    //    }
 
+       const mainResponseArray = {
+        tenantOneUserCredentials:  userCredentialsTenantOneResponse.data.d.results, 
+        tenantTwoUserCredentials:  userCredentialsTenantTwoResponse.data.d.results
+    }
         return res.status(200).json( { data: mainResponseArray })
     } catch(error) {
         console.log('Error in service fn getUserCredentials: ', error);
@@ -80,7 +84,8 @@ const copyUserCredentialsInfo = async (req, res) => {
         ufmProfileResponse.ufm_profile_secondary_tenant_id);
     
     const tenantOneUtilBearerToken = await getBearerTokenForIFlow (tenantOneDbResponse) ;
-    
+
+
     const axiosInstanceUtilTenantOne = axiosInstance({
         url: tenantOneDbResponse.tenant_util_host_url,
         headers: {
@@ -95,6 +100,28 @@ const copyUserCredentialsInfo = async (req, res) => {
         url: tenantTwoDbResponse.tenant_host_url,
         token: tenantTwoBearerToken
     });
+
+    let targetCredentialUrl = `/http/GetCredentials`;
+    let utilResponse = await axiosInstanceUtilTenantOne.post(targetCredentialUrl,payload)
+    if ( utilResponse) {
+        console.log('Got util response');
+    }
+
+    let validCredentialPayload = [];
+    let invalidCredentials = [];
+    let validNames = []
+    let inputData = utilResponse.data
+    for ( let i = 0; i < inputData.length; i++) {
+        if ( inputData[i].SecurityArtifactDescriptor.Status === "NOT_FOUND" ||
+            inputData[i].Password === null
+        ) {
+            console.log('Status: ',inputData[i].SecurityArtifactDescriptor.Status,  'password:', inputData[i].Password );
+            invalidCredentials.push(inputData[i].Name)
+        } else {
+            validNames.push (inputData[i].Name)
+            validCredentialPayload.push( inputData[i])
+        }
+    }
 
     const updateResult =    await UFMSyncHeader.update(
         { is_last_record: false },
@@ -120,63 +147,64 @@ const copyUserCredentialsInfo = async (req, res) => {
     );
 
     const createOrUpdateUserCredentials = async (credential) => {
-
+        try {
         const targetUrl = credential.doesExistOnTarget 
             ? `/api/v1/UserCredentials('${credential.Name}')`
             : '/api/v1/UserCredentials';
         const requestMethod = credential.doesExistOnTarget ? 'put' : 'post';
 
-         // get clientSecret from Util
-         let targetCredentialUrl = `/http/GetCredentials`;
-         let utilResponse = await axiosInstanceUtilTenantOne.post(targetCredentialUrl, [
-             {
-                 Name: `${credential.Name}`
-             }
-         ])
-
-         const nameFromUtil =  utilResponse.data[0].Name;
-         const passwordFromUtil = utilResponse.data[0].Password;
+        const foundElement = validCredentialPayload.find(element => element['Name'] === credential.Name);
 
         let response;
-        if ( credential.doesExistOnTarget) {
-            response = await axiosInstanceTenantTwo.put(encodeURI(targetUrl), {
-                "Name": credential.Name,
-                "Kind": credential.Kind,
-                "Description": credential.Description,
-                "User": credential.User,
-                "Password": passwordFromUtil,
-                "CompanyId": credential.CompanyId
-            })
-        } else {
-            delete credential.doesExistOnTarget;
 
-            response = await axiosInstanceTenantTwo.post(targetUrl, {
-                ...credential, "Password": passwordFromUtil
-             })
-        }
-
-        if (response) {
-            console.log(`${requestMethod.toUpperCase()} response done for:`, credential.Name);
-            await UFMSyncDetail.create({
-                ufm_sync_header_id: newUFMSyncHeader.ufm_sync_header_id,
-                ufm_sync_uc_name: credential.Name,
-                ufm_sync_uc_kind: credential.Kind,
-                ufm_sync_uc_description: credential.Description,
-                ufm_sync_uc_user: credential.User,
-                ufm_sync_uc_password: passwordFromUtil,
-                ufm_sync_uc_company_id: credential.CompanyId,
-            }, { transaction });
+            if ( credential.doesExistOnTarget) {
+                response = await axiosInstanceTenantTwo.put(encodeURI(targetUrl), {
+                    "Name": credential.Name,
+                    "Kind": credential.Kind,
+                    "Description": credential.Description,
+                    "User": credential.User,
+                    "Password": foundElement.Password,
+                    "CompanyId": credential.CompanyId
+                })
+            } else {
+                delete credential.doesExistOnTarget;
+    
+                response = await axiosInstanceTenantTwo.post(targetUrl, {
+                    ...credential, "Password": foundElement.Password
+                 })
+            }
+       
+            if (response) {
+                console.log(`${requestMethod.toUpperCase()} response done for:`, credential.Name);
+                await UFMSyncDetail.create({
+                    ufm_sync_header_id: newUFMSyncHeader.ufm_sync_header_id,
+                    ufm_sync_uc_name: credential.Name,
+                    ufm_sync_uc_kind: credential.Kind,
+                    ufm_sync_uc_description: credential.Description,
+                    ufm_sync_uc_user: credential.User,
+                    ufm_sync_uc_password: foundElement.Password,
+                    ufm_sync_uc_company_id: credential.CompanyId,
+                }, { transaction });
+            }
+        } catch(error) {
+            invalidCredentials.push(credential.Name)
         }
     };
 
-    const promises = payload.map(createOrUpdateUserCredentials);
+    const promises = validCredentialPayload.map(createOrUpdateUserCredentials);
     await Promise.all(promises);
     
     await transaction.commit();
+
+    if (invalidCredentials.length) {
+        return res.status(409).json({ invalidCredentials })
+    }
+
     return res.status(200).json({ message: "User credentials copied successfully"})
-    } catch(err){
+    
+  } catch(err){
         await transaction.rollback();
-        console.log('Error in service post user credential: ', err);
+        console.log('Error in service post user credential: ');
         return res.status(500).json({ error: `Internal Server Error: ${err.message}`})
     }
 
