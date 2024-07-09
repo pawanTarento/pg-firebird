@@ -202,26 +202,37 @@ const performFailoverActivity = async (commonInputData) => {
     //     console.log('\nHeart beat activity performed');
     // }
 
-    // const isUndeployed = await undeployArtifacts(commonInputData);
+    const isUndeployed = await undeployArtifacts(commonInputData);
 
-    // if (isUndeployed) {
-    //     console.log('\nUndeployed runtime artifacts from primary site');
-    // }
+    if (isUndeployed) {
+        console.log('\nUndeployed runtime artifacts from primary site');
+    }
 
-    // const isCopiedGV = await copyGlobalVariables(commonInputData);
+    const isCopiedGlobalVariables = await copyGlobalVariables(commonInputData);
 
-    // if (isCopiedGV) {
-    //     console.log('\n copied global variables')
-    // }
+    if (isCopiedGlobalVariables) {
+        console.log('\n copied global variables')
+    }
 
+    const isNumberRangesCopied = await copyNumberRanges(commonInputData);
+
+    if (isNumberRangesCopied) {
+        console.log('\nNumber Ranges copied');
+    }
     
+    let isDeployed = await deployArtifacts(commonInputData);
 
+    if (isDeployed) {
+        console.log('deployed artifacts');
+    }
 
-
-
-    
-    // then deploy undeploy artifacts
-    // deployUndeployArtifacts(FOSB_query);
+    if (   isUndeployed
+        && isCopiedGlobalVariables
+        && isNumberRangesCopied
+        && isDeployed
+    ) {
+        console.log('\nFailover completed successfully');
+    }
 
 }
 
@@ -308,19 +319,89 @@ const heartBeatServiceProcedure = async (commonInputData) => {
 
 }
 
-const numberRangeAndGlobalVariablesCopy = () => {
-    const isSuccessfulOperation = false;
-    const is_NR_copied = copyNumberRanges(commonInputData);
-    const is_GR_copied = copyGlobalVariables(commonInputData);
-    
-    if (is_NR_copied && is_GR_copied) {
-        isSuccessfulOperation = true
-    }
 
-    return isSuccessfulOperation;
+function compareNumberRanges(source, target) {
+    // Create a Set of names in the target array for quick lookup
+    const targetNames = new Set(target.map(item => item.Name));
+
+    // Iterate over the source array and add the doesExistOnTarget key
+    const result = source.map(item => {
+        return {
+            ...item,
+            doesExistOnTarget: targetNames.has(item.Name)
+        };
+    });
+
+    return result;
 }
 
-const copyNumberRanges = () => {
+
+// need proper try-catch block everywhere
+const copyNumberRanges = async (commonInputData) => {
+
+    if (commonInputData.activity_type === FAILOVER_ENTRY_TYPE) {
+        try{
+            let [numberRangesTenantOneResponse, numberRangesTenantTwoResponse ] = await Promise.all([
+                await commonInputData.axiosInstancePrimaryTenant.get("/api/v1/NumberRanges"),
+                await commonInputData.axiosInstanceSecondaryTenant.get("/api/v1/NumberRanges")
+            ])
+    
+            numberRangesPrimaryTenant = numberRangesTenantOneResponse.data.d.results;
+            numberRangesSecondaryTenant = numberRangesTenantTwoResponse.data.d.results;
+    
+            // compare the number ranges array gotten above
+            resultArray = compareNumberRanges(numberRangesPrimaryTenant, numberRangesSecondaryTenant)
+    
+            //  do post or put call based on the existence of doesExistOnTarget flag 
+            const createOrUpdateNumberRanges = async (numberRangeObj) => {
+    
+                const targetUrl = numberRangeObj.doesExistOnTarget 
+                    ? `/api/v1/NumberRanges('${numberRangeObj.Name}')` // this is for put
+                    : '/api/v1/NumberRanges'; // this for post
+                const requestMethod = numberRangeObj.doesExistOnTarget ? 'put' : 'post';
+                
+                let response;
+                if ( numberRangeObj.doesExistOnTarget) {
+                    response = await commonInputData.axiosInstanceSecondaryTenant.put(encodeURI(targetUrl), {
+                        "Name": numberRangeObj.Name,
+                        "Description": numberRangeObj.Description,
+                        "MaxValue": numberRangeObj.MaxValue,
+                        "MinValue": numberRangeObj.MinValue,
+                        "Rotate": numberRangeObj.Rotate,
+                        "CurrentValue": numberRangeObj.CurrentValue,
+                        "FieldLength": numberRangeObj.FieldLength
+                    })
+                } else {
+                    // deleting these keys/attributes because they are not required in post payload
+                    delete numberRangeObj.doesExistOnTarget;
+                    delete numberRangeObj.DeployedBy; 
+                    delete numberRangeObj.DeployedOn;
+        
+                    response = await commonInputData.axiosInstanceSecondaryTenant.post(targetUrl, {
+                        ...numberRangeObj
+                     })
+                }
+    
+                console.log(`${requestMethod} operation done for number range: ${numberRangeObj.Name}`);
+            };
+    
+            const promises = resultArray.map(createOrUpdateNumberRanges);
+            await Promise.all(promises);
+    
+    
+            return true;
+        } catch(error) {
+            console.log('\nError during copying Number Ranges', error);
+        }
+        
+    } 
+
+    if (commonInputData.activity_type === SWITCH_BACK_ENTRY_TYPE) {
+
+
+        return true;
+    }
+
 
     return true;
 }
@@ -514,10 +595,121 @@ if (commonInputData.activity_type === FAILOVER_ENTRY_TYPE) {
 
 if (commonInputData.activity_type === SWITCH_BACK_ENTRY_TYPE) {
 
+    return true;
+}
+
+return true;
 }
 
 
+const deployArtifacts = async (commonInputData) => {
+    // deployment of artifacts is done in the manner -> one by one by priority
 
+    if (commonInputData.activity_type === FAILOVER_ENTRY_TYPE) {
+        try {
+
+            const failoverProcessComponent = await UFMFailoverProcessComponent.findAll({
+                where:{
+                    failover_process_id: commonInputData.failoverProcessId
+                },
+                order: [['config_component_position', 'ASC']],
+            });
+
+            if (!failoverProcessComponent) {
+                console.log('\nFailover process component data not found for failover process id:', commonInputData.failover_process_id)
+                // throw Error(`Failover process component data not found for failover process id: ${commonInputData.failover_process_id}`)
+            }
+
+              // update the fields for timestamps
+        await UFMFailoverProcessComponent.update(
+            {
+                secondary_tenant_runtime_started_on: null,
+                secondary_tenant_runtime_completed_on: null,
+                secondary_tenant_runtime_error: null
+
+            },
+            {
+                where: {
+                    failover_process_id: commonInputData.failoverProcessId
+                }
+            }
+        );
+
+        // for loop -> in order to hit APIs one by one 
+        for (let i = 0; i < failoverProcessComponent.length; i++) {
+            try {
+                await UFMFailoverProcessComponent.update(
+                    {
+                        secondary_tenant_runtime_started_on: Math.floor(Date.now() / 1000)
+                    },
+                    {
+                        where: {
+                            failover_process_component_id: failoverProcessComponent[i].failover_process_component_id
+                        }
+                    }
+                );
+        
+                let deployArtifactsUrl = `/api/v1/DeployIntegrationDesigntimeArtifact?Id='${failoverProcessComponent[i].config_component_id}'&Version='${failoverProcessComponent[i].config_component_dt_version}'`;
+                
+                let deployedArtifact = await commonInputData.axiosInstanceSecondaryTenant.post(deployArtifactsUrl);
+        
+                if (deployedArtifact) {
+                    console.log(`Artifact deployed is: `, failoverProcessComponent[i].config_component_id);
+                    
+                    await UFMFailoverProcessComponent.update(
+                        {
+                            secondary_tenant_runtime_completed_on: Math.floor(Date.now() / 1000),
+                            secondary_tenant_runtime_status: "DEPLOYED"
+                        },
+                        {
+                            where: {
+                                failover_process_component_id: failoverProcessComponent[i].failover_process_component_id
+                            }
+                        }
+                    );
+                }
+            } catch (error) {
+                let errorMessage = '';
+        
+                if (error.response && error.response.status === 404) {
+                    errorMessage = `Artifact id: ${failoverProcessComponent[i].config_component_id} is not found.`;
+                    console.error(errorMessage);
+                } else {
+                    console.error(`Error deploying artifact with id ${failoverProcessComponent[i].config_component_id}:`);
+        
+                    let errorString = JSON.stringify(error);
+                    errorMessage = errorString.substring(0, 1024);
+                }
+        
+                await UFMFailoverProcessComponent.update(
+                    {
+                        secondary_tenant_runtime_error: errorMessage,
+                        secondary_tenant_runtime_status: "DEPLOYMENT_ERROR"
+                    },
+                    {
+                        where: {
+                            failover_process_component_id: failoverProcessComponent[i].failover_process_component_id
+                        }
+                    }
+                );
+            }
+        } // for loop ends here
+        
+
+
+        } catch(error) {
+            console.log('\nError in deploying artifacts on secondary : ', error.message)
+        }
+
+        return true;
+    }
+
+    if (commonInputData.activity_type === SWITCH_BACK_ENTRY_TYPE) {
+
+        return true;
+    }
+
+    return true;
 }
 
 

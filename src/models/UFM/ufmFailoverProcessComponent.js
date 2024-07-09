@@ -22,6 +22,10 @@ UFMFailoverProcessComponent.init({
         type: DataTypes.STRING(250),
         allowNull: true
     },
+    config_component_position: {
+        type: DataTypes.INTEGER,
+        allowNull: true
+    },
     config_component_id: {
         type: DataTypes.STRING(250),
         allowNull: true
