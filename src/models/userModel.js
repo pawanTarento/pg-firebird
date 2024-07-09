@@ -1,6 +1,7 @@
 // userModel.js
 const { DataTypes, Model } = require('sequelize');
 const sequelize = require('../dbconfig/config');
+const Taxonomy = require('./taxonomy');
 
 class UserModel extends Model {}
 
@@ -75,6 +76,10 @@ UserModel.init({
         type: DataTypes.STRING(120),
         allowNull: true,
         defaultValue: null
+    },
+    timezone_id: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
     }
 }, {
     sequelize,
@@ -98,3 +103,5 @@ UserModel.init({
 module.exports = UserModel;
 
 UserModel.sync({ force: false });
+
+UserModel.belongsTo( Taxonomy, { foreignKey: "timezone_id", as: "timezone" });

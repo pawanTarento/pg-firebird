@@ -3,6 +3,10 @@ const {tenantTableColumns} = require("../constants/tableColumns");
 const { encryptData, decryptData, getEncryptionIV } = require("../util/decode");
 const _ = require("lodash");
 const Taxonomy = require("../models/taxonomy");
+const { sendResponse } = require("../util/responseSender");
+const { HttpStatusCode } = require("axios");
+const { responseObject } = require("../constants/responseTypes");
+const UserModel = require("../models/userModel");
 
 const getAllTenants = async (req, res) => {
 
@@ -25,14 +29,55 @@ const getAllTenants = async (req, res) => {
           {
             model: Taxonomy,
             as: "test_status"
+          },
+          {
+            model: UserModel,
+            as: "created_by_user",
+            attributes: [
+              "user_id",
+              "email_id",
+              "external_id",
+              "first_name",
+              "last_name",
+              "display_name"
+            ]
+          },
+          {
+            model: UserModel,
+            as: "modified_by_user",
+            attributes: [
+              "user_id",
+              "email_id",
+              "external_id",
+              "first_name",
+              "last_name",
+              "display_name"
+            ]
           }
         ]
     })
 
     if (!response) {
-        return res.status(400).json({ message: "No Tenants to show"})
+      return sendResponse(
+        res, // response object
+        false, // success
+        HttpStatusCode.NotFound, // statusCode
+        responseObject.RECORD_NOT_FOUND, // status type
+         `No tenant data to show`, // message,
+        {}
+    )
+        // return res.status(400).json({ message: "No Tenants to show"})
     }
-    return res.status(200).json({ data: response});
+
+    return sendResponse(
+      res, // response object
+      true, // success
+      HttpStatusCode.Ok, // statusCode
+      responseObject.RECORD_FOUND, // status type
+      `A list of tenant records`, // message
+       response
+    );
+    // return res.status(200).json({ data: response});
 }
 
 
@@ -56,29 +101,113 @@ const getTenantById = async (req, res, tenantId) => {
           {
             model: Taxonomy,
             as: "test_status"
+          },
+          {
+            model: UserModel,
+            as: "created_by_user",
+            attributes: [
+              "user_id",
+              "email_id",
+              "external_id",
+              "first_name",
+              "last_name",
+              "display_name"
+            ]
+          },
+          {
+            model: UserModel,
+            as: "modified_by_user",
+            attributes: [
+              "user_id",
+              "email_id",
+              "external_id",
+              "first_name",
+              "last_name",
+              "display_name"
+            ]
           }
         ]
     })
 
     if ( !response) {
-        return res.status(400).json({ message: "No data for given id"})
+      return sendResponse(
+        res, // response object
+        false, // success
+        HttpStatusCode.NotFound, // statusCode
+        responseObject.RECORD_NOT_FOUND, // status type
+         `No tenant data to show`, // message,
+        {}
+    )
+        // return res.status(400).json({ message: "No data for given id"})
     }
     // Decrypt the tenant_host_password
     response.tenant_host_password = decryptData( response.tenant_host_password, getEncryptionIV(response.tenant_iv_salt));
     response.tenant_util_client_secret = decryptData (response.tenant_util_client_secret, getEncryptionIV(response.tenant_util_iv_salt ))
-    return res.status(200).json({ data: response });
+    return sendResponse(
+      res, // response object
+      true, // success
+      HttpStatusCode.Ok, // statusCode
+      responseObject.RECORD_FOUND, // status type
+      `A list of tenant record for id: ${tenantId}`, // message
+       response
+    );
+    // return res.status(200).json({ data: response });
 
 }
 
 const removeTenant = async (req, res, tenantId) => {
+  try {
     const tenant = await Tenant.findByPk(tenantId);
     if (!tenant) {
-      res.status(404).json({ error: 'Tenant not found' });
+      return sendResponse(
+        res, // response object
+        false, // success
+        HttpStatusCode.NotFound, // statusCode
+        responseObject.RECORD_NOT_FOUND, // status type
+        `Data not found for id: ${tenantId}`, // message
+         {}
+    );
+      // res.status(404).json({ error: 'Tenant not found' });
     } else {
       await tenant.destroy();
       // res.status(204).end();
-      return res.status(204).json({message: "Record deleted successfully."})
+      return sendResponse(
+        res, // response object
+        true, // success
+        HttpStatusCode.Ok, // statusCode 200
+        responseObject.RECORD_DELETE, // status type
+        `Record deleted of tenant: ${tenant.tenant_id}`, // message
+         {}
+    );
+      // return res.status(204).json({message: "Record deleted successfully."})
     }
+  } catch(error) {
+    console.error('Error for deleting tenant record', error);
+    let errorMessage = '';
+
+    // Check if the error is a Sequelize error
+    if (error.name && error.name.startsWith('Sequelize')) {
+        if (error.name === "SequelizeForeignKeyConstraintError") {
+            errorMessage = 'Tenant id in use already in other table(s)';
+        } else if (error.name === "SequelizeUniqueConstraintError") {
+            errorMessage = 'git id must be unique';
+        } else {
+            errorMessage = 'An unexpected Sequelize error occurred';
+        }
+    } else {
+        errorMessage = 'A non-Sequelize error occurred';
+    }
+
+    return sendResponse(
+      res, // response object
+      false, // success
+      HttpStatusCode.InternalServerError, // statusCode
+      responseObject.INTERNAL_SERVER_ERROR, // status type
+      `For deleting tenant id:${tenantId}. ${errorMessage} `, // message
+      {}
+  );
+  }
+    
 }
 
 const addTenant = async ( req, res) => {
@@ -110,7 +239,7 @@ const addTenant = async ( req, res) => {
          // later on, use tenant_iv_salt
          let encryptedTenantHostPassword = encryptData (tenant_host_password, getEncryptionIV(tenant_iv_salt));
          let encryptedTenantUtilClientSecret = encryptData (tenant_util_client_secret, getEncryptionIV(tenant_util_iv_salt))
-        const user = await Tenant.create({ 
+        const tenant = await Tenant.create({ 
           tenant_name,
           tenant_description,
           tenant_region_id,
@@ -132,10 +261,18 @@ const addTenant = async ( req, res) => {
           created_by,
           modified_by,
         });
-        res.status(201).json(user);
+        res.status(201).json(tenant);
       } catch (error) {
-        console.error('Error creating user:', error);
-        res.status(500).json({ error: 'Internal Server Error' });
+        console.error('Error creating tenant:', error);
+        return sendResponse(
+          res, // response object
+          false, // success
+          HttpStatusCode.InternalServerError, // statusCode
+          responseObject.INTERNAL_SERVER_ERROR, // status type
+          `Internal Server Error: in creating a tenant record.`, // message
+          {}
+      );
+        // res.status(500).json({ error: 'Internal Server Error' });
       }
 }
 
@@ -147,7 +284,15 @@ const updateTenantDetails = async (req, res) => {
         const tenant_iv_salt = tenant.tenant_iv_salt;
         const tenant_util_iv_salt = tenant.tenant_util_iv_salt;
         if (!tenant) {
-          res.status(404).json({ error: 'Tenant not found...' });
+          return sendResponse(
+            res, // response object
+            false, // success
+            HttpStatusCode.NotFound, // statusCode
+            responseObject.RECORD_NOT_FOUND, // status type
+            `Data not found for tenant id: ${tenant_id}`, // message
+             {}
+        );
+          // res.status(404).json({ error: 'Tenant not found' });
         } else {
           let { 
             tenant_name,
@@ -202,7 +347,15 @@ const updateTenantDetails = async (req, res) => {
         }
       } catch (error) {
         console.error('Error updating tenant:', error);
-        res.status(500).json({ error: 'Internal Server Error' });
+        return sendResponse(
+          res, // response object
+          false, // success
+          HttpStatusCode.InternalServerError, // statusCode
+          responseObject.INTERNAL_SERVER_ERROR, // status type
+          `Internal Server Error: in updating a tenant record.`, // message
+          {}
+      );
+        // res.status(500).json({ error: 'Internal Server Error' });
       }
 
 }

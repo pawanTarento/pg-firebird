@@ -23,7 +23,7 @@ const addTenantRecord = async( req, res) => {
 
 // done
 const removeTenantRecord = async( req, res) => {
-    const tenantId = req.params.id;
+    const tenantId = req.params.tenantId;
 
     try {
         tenantService.removeTenant(req,res,tenantId);

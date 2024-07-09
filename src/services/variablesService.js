@@ -4,6 +4,9 @@ const { getBearerTokenForTenants, getBearerTokenForIFlow } = require("../util/au
 const { axiosInstance } = require("./cpiClient");
 const unzipper = require('unzipper');
 const { Writable } = require('stream');
+const { sendResponse } = require("../util/responseSender");
+const { HttpStatusCode } = require("axios");
+const { responseObject } = require("../constants/responseTypes");
 
 const getAllVariablesInfo = async (ufmProfileId,componentTypeId, isCalledFromApi = false) => {
     try {
@@ -71,18 +74,44 @@ const getAllVariables = async (req, res) => {
     let mainResponse = await getAllVariablesInfo(ufmProfileId, componentTypeId, isCalledFromApi )
         
     if (!Array.isArray(mainResponse)) {
-        return res.status(500).json({ error: mainResponse})
-       }
-        return res.status(200).json({ 
-            data: {
-                tenantOneVariables: mainResponse[0].tenantOneVariables,
-                tenantTwoVariables: mainResponse[1].tenantTwoVariables,
-            }
-        });
+        return sendResponse(
+            res, // response object
+            false, // success
+            HttpStatusCode.NotFound, // statusCode
+            responseObject.RECORD_NOT_FOUND, // status type
+            mainResponse, // message contained in mainResponse
+            {}
+        );
+    }
+    return sendResponse(
+        res, // response object
+        true, // success
+        HttpStatusCode.Ok, // statusCode
+        responseObject.API_RESPONSE_OK, // status type
+        `Variables for the given ufm profile id: ${ufmProfileId} tenants`, // message
+        {
+            tenantOneVariables: mainResponse[0].tenantOneVariables,
+            tenantTwoVariables: mainResponse[1].tenantTwoVariables,
+        } // data
+    )
+        // return res.status(200).json({ 
+        //     data: {
+        //         tenantOneVariables: mainResponse[0].tenantOneVariables,
+        //         tenantTwoVariables: mainResponse[1].tenantTwoVariables,
+        //     }
+        // });
 
     } catch(error) {
         console.log('Error in service fn getAllVariables: ', error);
-        return res.status(500).json({ error: `Internal Server Error: ${error.message}`})
+        return sendResponse(
+            res, // response object
+            false, // success
+            HttpStatusCode.InternalServerError, // statusCode
+            responseObject.INTERNAL_SERVER_ERROR, // status type
+            `Internal Server Error: in getting all global variables.`, // message
+            {}
+        );
+        // return res.status(500).json({ error: `Internal Server Error: ${error.message}`})
     }
 
 }
@@ -105,7 +134,15 @@ const copyVariablesFromSourceToTarget = async (req, res) => {
     })
     
     if (!ufmProfileResponse) {
-        return res.status(400).json({ error: "UFM Profile id not found"})
+        return sendResponse(
+            res, // response object
+            false, // success
+            HttpStatusCode.NotFound, // statusCode
+            responseObject.RECORD_NOT_FOUND, // status type
+            "UFM Profile id not found", // message contained in mainResponse
+            {}
+        );
+        // return res.status(400).json({ error: "UFM Profile id not found"})
     }
 
     const [
@@ -133,8 +170,10 @@ const copyVariablesFromSourceToTarget = async (req, res) => {
     let allVariables = await getAllVariablesInfo(ufm_profile_id, component_type_id, isCalledFromApi);
     let variablesFromTenantOne = allVariables[0].tenantOneVariables;
     const copiedVariables = [];
+    const notCopiedVariables = [];
 
     async function processVariable(variableObj) {
+        console.log('\nvariable obj: ', variableObj)
         try {
           const url = `/api/v1/Variables(VariableName='${variableObj.VariableName}',IntegrationFlow='${variableObj.IntegrationFlow}')/$value`;
           console.log('URL:', url);
@@ -193,6 +232,7 @@ const copyVariablesFromSourceToTarget = async (req, res) => {
           }
         } catch (error) {
           console.error('Error processing variable:', variableObj.VariableName, error.message);
+          notCopiedVariables.push( variableObj.VariableName);
         }
       }
 
@@ -200,10 +240,27 @@ const copyVariablesFromSourceToTarget = async (req, res) => {
       await Promise.all(promises);
 
 
-    return res.status(200).json({ message: "Variables Copied successfully", copiedVariables})
+      return sendResponse(
+        res, // response object
+        true, // success
+        HttpStatusCode.Ok, // statusCode
+        responseObject.API_RESPONSE_OK, // status type
+        `Variables Copied successfully`, // message
+        copiedVariables
+    )
+
+    // return res.status(200).json({ message: "Variables Copied successfully", copiedVariables})
     } catch(error) {
         console.log('Error in service fn: copyVariablesFromSourceToTarget: ', error);
-        return res.status(500).json({ error: `Internal Server Error: ${error.message}`})
+        return sendResponse(
+            res, // response object
+            false, // success
+            HttpStatusCode.InternalServerError, // statusCode
+            responseObject.INTERNAL_SERVER_ERROR, // status type
+            `Internal Server Error: in copying global variables.`, // message
+            {}
+        );
+        // return res.status(500).json({ error: `Internal Server Error: ${error.message}`})
     }
 
 }

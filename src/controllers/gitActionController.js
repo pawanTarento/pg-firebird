@@ -1,4 +1,7 @@
 const gitActivityService = require("../services/gitActionService");
+const { sendResponse } = require("../util/responseSender");
+const { HttpStatusCode } = require("axios");
+const { INTERNAL_SERVER_ERROR } = require("../constants/responseTypes")
 
 async function copyPackagesOnGitFromTenant(req, res) {
     try {
@@ -6,6 +9,13 @@ async function copyPackagesOnGitFromTenant(req, res) {
 
     } catch(error) {
         console.log('Error in copyPackagesOnGitFromTenant: ', error);
+        sendResponse(
+            res, // response Object
+            false,
+            HttpStatusCode.InternalServerError,  // code
+            INTERNAL_SERVER_ERROR, // type 
+            "Error in copying packages on git repository from Tenant"  // message
+        )
     }
 }
 
@@ -20,7 +30,14 @@ const checkGitConnectionProper = (req, res) => {
         gitActivityService.checkGitConnection(req,res, grId);
 
     } catch(error) {
-        console.log('Error in copyPackagesOnGitFromTenant: ', error);
+        console.log('Error in fn controller: checkGitConnectionProper: ', error);
+        return sendResponse(
+            res, // response Object
+            false, // success 
+            HttpStatusCode.InternalServerError,  // code
+            INTERNAL_SERVER_ERROR, // type 
+            error.message  // message
+        )
     }
 }
 

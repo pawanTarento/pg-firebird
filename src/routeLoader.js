@@ -16,7 +16,6 @@ router.use("/taxonomy", require("./routes/taxonomyRouter"));
 router.use("/ufm", require("./routes/ufmProfileRouter"));
 router.use("/userMaster", require("./routes/userMasterRouter"));
 router.use('/tokens', require("./routes/tokenProviderRouter"));
-router.use("/failoverConfig", require("./routes/ufmFailoverConfigRouter"));
 router.use("/failoverConfigState",require("./routes/ufmFailoverConfigStateRouter"));
 router.use("/runtimeArtifacts", require("./routes/runtimeArtifactsRouter")); // here
 router.use("/ufmProfileRuntime", require("./routes/ufmProfileRuntimeMapRouter"));

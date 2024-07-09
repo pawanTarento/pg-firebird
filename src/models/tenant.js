@@ -3,6 +3,7 @@ const { DataTypes, Model } = require('sequelize');
 const sequelize = require('../dbconfig/config');
 const UFMProfile = require('./ufmProfile');
 const Taxonomy = require('./taxonomy');
+const UserModel = require('./userModel');
 
 class Tenant extends Model {}
 
@@ -36,7 +37,7 @@ Tenant.init({
         type: DataTypes.STRING(2048),
         allowNull: true
     },
-    tenant_iflow_host_url: {
+    tenant_iflow_host_url: { // column not in use
         type: DataTypes.STRING(2048),
         allowNull: true
     },
@@ -87,11 +88,11 @@ Tenant.init({
         allowNull: true
     },
     created_by: {
-        type: DataTypes.STRING(40),
+        type: DataTypes.INTEGER,
         allowNull: true
     },
     modified_by: {
-        type: DataTypes.STRING(40),
+        type: DataTypes.INTEGER,
         allowNull: true
     },
     created_on: {
@@ -134,3 +135,6 @@ Tenant.belongsTo( Taxonomy, { foreignKey: "tenant_environment_id", as: "tenant_e
 Tenant.belongsTo( Taxonomy, { foreignKey: "tenant_state_id", as : "tenant_state"});
 Tenant.belongsTo( Taxonomy, { foreignKey: "tenant_region_id", as : "region_id"});
 Tenant.belongsTo( Taxonomy, { foreignKey: "tenant_host_test_status_id", as : "test_status"});
+
+Tenant.belongsTo( UserModel, { foreignKey: "created_by", as: "created_by_user"});
+Tenant.belongsTo( UserModel, { foreignKey: "modified_by", as: "modified_by_user"});

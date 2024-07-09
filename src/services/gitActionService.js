@@ -5,6 +5,8 @@ const { HttpStatusCode } = require("axios");
 const { decryptData, getEncryptionIV } = require("../util/decode");
 const { Octokit } = require("@octokit/rest");
 const { UNSUCCESSFUL_TEST_STATUS, SUCCESSFUL_TEST_STATUS } = require("../constants/taxonomyValues");
+const { sendResponse } = require("../util/responseSender");
+const { responseObject } = require('../constants/responseTypes');
 
 async function copyPackagesToGitRepository(req,res) {
 //    let abc = await getOAuthGit()
@@ -24,7 +26,14 @@ const checkGitConnection = async (req, res, grId) => {
 
         if (!response) {
             await transaction.rollback();
-            return res.status(HttpStatusCode.NotFound).json({ error: `Git id : ${grId} not found`});
+            return sendResponse(
+                res, // response object
+                false, // success
+                HttpStatusCode.NotFound, // statusCode
+                responseObject.RECORD_NOT_FOUND, // status type
+                 `Git id : ${grId} not found` // message
+            );
+            // return res.status(HttpStatusCode.NotFound).json({ error: `Git id : ${grId} not found`});
         }
 
         console.log('\nGit record found');
@@ -53,7 +62,14 @@ const checkGitConnection = async (req, res, grId) => {
                 transaction
             });
             await transaction.commit();
-            return res.status(HttpStatusCode.NotFound).json({ success: false});
+            return sendResponse(
+                res, // response object
+                false, // success
+                HttpStatusCode.NotFound, // statusCode
+                responseObject.TEST_CONNECTION_NOT_OK, // status type
+                 `Git test connection for ${gitRepoResponse.gr_name} is unsuccesful` // message
+            );
+            // return res.status(HttpStatusCode.NotFound).json({ success: false});
         }
 
         if (gitRepoResponse) {
@@ -65,13 +81,27 @@ const checkGitConnection = async (req, res, grId) => {
                 transaction
             });
             await transaction.commit();
-            return res.status(HttpStatusCode.Ok).json({ success: true });
+            return sendResponse(
+                res, // response object
+                true, // success
+                HttpStatusCode.Ok, // statusCode
+                responseObject.TEST_CONNECTION_OK, // status type
+                `Git test connection for ${gitRepoResponse.gr_name} is successful` // message
+            );
+            // return res.status(HttpStatusCode.Ok).json({ success: true });
         }
         
     } catch(error) {
         console.log('Error in checkGitConnection Service: ', error);
         await transaction.rollback();
-        return res.status(HttpStatusCode.InternalServerError).json({ success: false });
+        return sendResponse(
+            res, // response object
+            false, // success
+            HttpStatusCode.InternalServerError, // statusCode
+            responseObject.INTERNAL_SERVER_ERROR, // status type
+            `Internal Server Error: in checking git connection.` // message
+        );
+        // return res.status(HttpStatusCode.InternalServerError).json({ success: false });
     }
 }
 

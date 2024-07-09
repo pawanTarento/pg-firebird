@@ -4,6 +4,9 @@ const UFMSyncHeader = require("../models/UFM/ufmSyncHeader");
 const UFMProfile = require("../models/ufmProfile");
 const { getBearerTokenForTenants } = require("../util/auth");
 const { axiosInstance } = require("./cpiClient");
+const { sendResponse } = require("../util/responseSender");
+const { HttpStatusCode } = require("axios");
+const { responseObject } = require("../constants/responseTypes");
 
 const getKeyStoreValues = async (tenantOneId, tenantTwoId, isCalledFromAPI = false) => {
     console.log('Is called from API: ', isCalledFromAPI)
@@ -50,8 +53,26 @@ const getKeyStoreValuesForTenants = async (req, res) => {
     const  {tenantOneId, tenantTwoId } = req.params;
     let isCalledFromAPI = true;// This flag is needed so that we could change  response for fn:getKeyStoreValues
     let mainResponseArray = await getKeyStoreValues(tenantOneId, tenantTwoId, isCalledFromAPI);
-    
-    return res.status(200).json({ data: mainResponseArray });
+    if (mainResponseArray === null) {
+        return sendResponse(
+            res, // response object
+            false, // success
+            HttpStatusCode.InternalServerError, // statusCode
+            responseObject.INTERNAL_SERVER_ERROR, // status type
+            `Internal Server Error: in updating a git record.`, // message
+            {}
+        );
+    }
+
+    return sendResponse(
+        res, // response object
+        true, // success
+        HttpStatusCode.Ok, // statusCode
+        responseObject.RECORD_FOUND, // status type
+        `List of keystore values for tenants`, // message
+         mainResponseArray
+    );
+    // return res.status(200).json({ data: mainResponseArray });
 }
 
 // In copy certificates 
@@ -67,7 +88,15 @@ const copyCertificates = async (req, res) => {
         } ,{ transaction })
 
         if (!ufmProfileResponse) {
-            return res.status(400).json({ error: "UFM Profile id not found"})
+            return sendResponse(
+                res, // response object
+                false, // success
+                HttpStatusCode.NotFound, // statusCode
+                responseObject.RECORD_NOT_FOUND, // status type
+                `UFM profile id: ${ufm_profile_id}, record not found`, // message
+                 {}
+            );
+            // return res.status(400).json({ error: "UFM Profile id not found"})
         }
 
         const [
@@ -195,7 +224,15 @@ const copyCertificates = async (req, res) => {
     } catch(error) {
         await transaction.rollback();
         console.log('Error in service copyCertificates: ', error);
-        return res.status(500).json({ error: `Internal Server Error: ${error.message}`})
+        return sendResponse(
+            res, // response object
+            false, // success
+            HttpStatusCode.InternalServerError, // statusCode
+            responseObject.INTERNAL_SERVER_ERROR, // status type
+            `Internal Server Error: in copying certificates.`, // message
+            {}
+        );
+        // return res.status(500).json({ error: `Internal Server Error: ${error.message}`})
     }
 
 }

@@ -3,6 +3,10 @@ const { ufmProfileColumns, gitMasterColumns } = require("../constants/tableColum
 const Tenant = require("../models/tenant");
 const GitRepository = require("../models/gitRepository");
 const Taxonomy = require("../models/taxonomy");
+const { sendResponse } = require("../util/responseSender");
+const { HttpStatusCode } = require("axios");
+const { responseObject } = require("../constants/responseTypes");
+const UFMSyncHeader = require("../models/UFM/ufmSyncHeader");
 
 const getAllUfmRecords = async (req, res) => {
 
@@ -44,14 +48,42 @@ const getAllUfmRecords = async (req, res) => {
         {
           model:Taxonomy,
           as: "tenant_state"
+        },
+        {
+          model: UFMSyncHeader,
+          where: {
+            is_last_record: true,
+            ufm_component_type_id: 11001
+          },
+          attributes: [
+            ['created_on', 'last_sync_on']
+          ],
+          required: false
         }
       ]
     })
 
     if (!response) {
-        return res.status(400).json({ message: "No Ufm Profile records to show"})
+      return sendResponse(
+        res, // response object
+        false, // success
+        HttpStatusCode.NotFound, // statusCode
+        responseObject.RECORD_NOT_FOUND, // status type
+        `No UFM profiles data to show`, // message
+         {}
+    );
+        // return res.status(400).json({ message: "No Ufm Profile records to show"})
     }
-    return res.status(200).json({ data: response });
+
+    return sendResponse(
+      res, // response object
+      true, // success
+      HttpStatusCode.Ok, // statusCode
+      responseObject.RECORD_FOUND, // status type
+      `A list of ufm profile records`, // message
+       response
+    );
+    // return res.status(200).json({ data: response });
 }
 
 const getUfmRecordById = async (req, res, ufmProfileId) => {
@@ -98,21 +130,80 @@ const getUfmRecordById = async (req, res, ufmProfileId) => {
     })
 
     if (!response) {
-        return res.status(400).json({ message: "No data for given UFM Profile id"})
+      return sendResponse(
+        res, // response object
+        false, // success
+        HttpStatusCode.NotFound, // statusCode
+        responseObject.RECORD_NOT_FOUND, // status type
+        `Data not found for id: ${ufmProfileId}`, // message
+         {}
+    );
+        // return res.status(400).json({ message: "No data for given UFM Profile id"})
     }
-    return res.status(200).json({ data: response});
+    return sendResponse(
+      res, // response object
+      true, // success
+      HttpStatusCode.Ok, // statusCode
+      responseObject.RECORD_FOUND, // status type
+      `A list of ufm profile records`, // message
+       response
+    );
+    // return res.status(200).json({ data: response});
 
 }
 
 const removeUfmRecord = async (req, res, ufmProfileId) => {
+  try {
     const ufmProfileRecord = await UFMProfile.findByPk(ufmProfileId);
     if (!ufmProfileRecord) {
-      res.status(404).json({ error: 'UFM Profile Record not found' });
+      return sendResponse(
+        res, // response object
+        false, // success
+        HttpStatusCode.NotFound, // statusCode
+        responseObject.RECORD_NOT_FOUND, // status type
+        `Data not found for id: ${ufmProfileId}`, // message
+         {}
+    );
+      // res.status(404).json({ error: 'UFM Profile Record not found' });
     } else {
       await ufmProfileRecord.destroy();
       // res.status(204).end();
-      return res.status(204).json({message: "Record deleted successfully."})
+      return sendResponse(
+        res, // response object
+        true, // success
+        HttpStatusCode.Ok, // statusCode 204
+        responseObject.RECORD_DELETE, // status type
+        `Record deleted for ufm profile id: ${ufmProfileRecord.ufm_profile_id}`, // message
+         {}
+    );
+      // return res.status(204).json({message: "Record deleted successfully."})
     }
+  } catch(error) {
+    console.log('Error in removing ufm record:', error);
+    let errorMessage = '';
+
+    // Check if the error is a Sequelize error
+    if (error.name && error.name.startsWith('Sequelize')) {
+        if (error.name === "SequelizeForeignKeyConstraintError") {
+            errorMessage = 'UFM profile id used in other table(s)';
+        } else if (error.name === "SequelizeUniqueConstraintError") {
+            errorMessage = 'UFM profile id must be unique';
+        } else {
+            errorMessage = 'An unexpected Sequelize error occurred';
+        }
+    } else {
+        errorMessage = 'A non-Sequelize error occurred';
+    }
+
+    return sendResponse(
+      res, // response object
+      false, // success
+      HttpStatusCode.InternalServerError, // statusCode
+      responseObject.INTERNAL_SERVER_ERROR, // status type
+      `For deleting ufm record id:${ufmProfileId}, ${errorMessage} `, // message
+      {}
+  );
+  }
 }
 
 const addUfmRecord = async ( req, res) => {
@@ -145,7 +236,15 @@ const addUfmRecord = async ( req, res) => {
         res.status(201).json(ufmProfileRecord);
       } catch (error) {
         console.error('Error creating UFM Profile Record:', error);
-        res.status(500).json({ error: 'Internal Server Error' });
+        return sendResponse(
+          res, // response object
+          false, // success
+          HttpStatusCode.InternalServerError, // statusCode
+          responseObject.INTERNAL_SERVER_ERROR, // status type
+          `Internal Server Error: in creating a ufm profile record.`, // message
+          {}
+      );
+        // res.status(500).json({ error: 'Internal Server Error' });
       }
 }
 
@@ -155,7 +254,15 @@ const updateUfmRecord = async (req, res) => {
     try {
         const ufmProfileRecord = await UFMProfile.findByPk(ufm_profile_id);
         if (!ufmProfileRecord) {
-          res.status(404).json({ error: 'UFM Profile record not found...' });
+          return sendResponse(
+            res, // response object
+            false, // success
+            HttpStatusCode.NotFound, // statusCode
+            responseObject.RECORD_NOT_FOUND, // status type
+            `Data not found for ufm profile id: ${ufm_profile_id}`, // message
+             {}
+        );
+          // res.status(404).json({ error: 'UFM Profile record not found...' });
         } else {
           const { 
             ufm_profile_id,
@@ -187,7 +294,15 @@ const updateUfmRecord = async (req, res) => {
         }
       } catch (error) {
         console.error('Error updating UFM Profile Record:', error);
-        res.status(500).json({ error: 'Internal Server Error' });
+        return sendResponse(
+          res, // response object
+          false, // success
+          HttpStatusCode.InternalServerError, // statusCode
+          responseObject.INTERNAL_SERVER_ERROR, // status type
+          `Internal Server Error: in updating a tenant record.`, // message
+          {}
+      );
+        // res.status(500).json({ error: 'Internal Server Error' });
       }
 
 }

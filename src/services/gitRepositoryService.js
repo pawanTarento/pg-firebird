@@ -3,6 +3,9 @@ const { gitMasterColumns } = require("../constants/tableColumns");
 const { encryptData, decryptData, getEncryptionIV } = require("../util/decode");
 const _ = require("lodash");
 const Taxonomy = require("../models/taxonomy");
+const { sendResponse } = require("../util/responseSender");
+const { HttpStatusCode } = require("axios");
+const { responseObject } = require("../constants/responseTypes");
 
 const getAllGitRecords = async (req, res) => {
 
@@ -22,9 +25,26 @@ const getAllGitRecords = async (req, res) => {
     })
 
     if (!response) {
-        return res.status(400).json({ message: "No Git Records to show"})
+      return sendResponse(
+        res, // response object
+        false, // success
+        HttpStatusCode.NotFound, // statusCode
+        responseObject.RECORD_NOT_FOUND, // status type
+        `No git records to show`, // message
+        {}
+    );
+        // return res.status(400).json({ message: "No Git Records to show"})
     }
-    return res.status(200).json({ data: response});
+
+    return sendResponse(
+      res, // response object
+      true, // success
+      HttpStatusCode.Ok, // statusCode
+      responseObject.RECORD_FOUND, // status type
+      `A list of git records`, // message
+       response
+  );
+    // return res.status(200).json({ data: response});
 }
 
 
@@ -45,22 +65,82 @@ const getGitRecordById = async (req, res, grId) => {
     })
 
     if (!response) {
-        return res.status(400).json({ message: "No data for given gr_id"})
+      return sendResponse(
+        res, // response object
+        false, // success
+        HttpStatusCode.NotFound, // statusCode
+        responseObject.RECORD_NOT_FOUND, // status type
+        `Data not found for id: ${grId}`, // message
+         {}
+    );
+        // return res.status(400).json({ message: "No data for given gr_id"})
     }
     response.gr_client_secret = decryptData( response.gr_client_secret, getEncryptionIV(response.gr_iv_salt));
-    return res.status(200).json({ data: response});
+    return sendResponse(
+      res, // response object
+      true, // success
+      HttpStatusCode.Ok, // statusCode
+      responseObject.RECORD_FOUND, // status type
+      `Information of git record for id: ${response.gr_id}`, // message
+       response
+  );
+    // return res.status(200).json({ data: response});
 
 }
 
 const removeGitRecord = async (req, res, grId) => {
+  try {
     const gitRecord = await GitRepository.findByPk(grId);
     if (!gitRecord) {
-      res.status(404).json({ error: 'Git Record not found' });
+      // res.status(404).json({ error: 'Git Record not found' });
+      return sendResponse(
+        res, // response object
+        false, // success
+        HttpStatusCode.NotFound, // statusCode
+        responseObject.RECORD_NOT_FOUND, // status type
+        `Data not found for id: ${grId}`, // message
+         {}
+    );
+
     } else {
       await gitRecord.destroy();
       // res.status(204).end();
-      return res.status(204).json({message: "Record deleted successfully."})
+      return sendResponse(
+        res, // response object
+        true, // success
+        HttpStatusCode.Ok, // statusCode 204
+        responseObject.RECORD_DELETE, // status type
+        `Record deleted of respository: ${gitRecord.gr_name}`, // message
+         {}
+    );
+      // return res.status(204).json({message: "Record deleted successfully."})
     }
+  } catch (error) {
+    console.log('\nError in deleting git record', error);
+    let errorMessage = '';
+
+    // Check if the error is a Sequelize error
+    if (error.name && error.name.startsWith('Sequelize')) {
+        if (error.name === "SequelizeForeignKeyConstraintError") {
+            errorMessage = 'Git repository in use already in other table(s)';
+        } else if (error.name === "SequelizeUniqueConstraintError") {
+            errorMessage = 'git id must be unique';
+        } else {
+            errorMessage = 'An unexpected Sequelize error occurred';
+        }
+    } else {
+        errorMessage = 'A non-Sequelize error occurred';
+    }
+
+    return sendResponse(
+      res, // response object
+      false, // success
+      HttpStatusCode.InternalServerError, // statusCode
+      responseObject.INTERNAL_SERVER_ERROR, // status type
+      `For deleting git record id:${grId}. ${errorMessage} `, // message
+      {}
+  );
+  }
 }
 
 const addGitRecord = async ( req, res) => {
@@ -83,7 +163,16 @@ const addGitRecord = async ( req, res) => {
 
         if (!gr_iv_salt){
           console.log('\nIV salt not found for git repository');
-          return res.status(400).json({ message: "Not found git repo IV salt"})
+          return sendResponse(
+            res, // response object
+            false, // success
+            HttpStatusCode.BadRequest, // statusCode
+            responseObject.PARAMETER_MISSING, // status type
+            `IV salt for the not received for git repository`, // message
+             {}
+        );
+    
+          // return res.status(400).json({ message: "Not found git repo IV salt"})
         }
 
         let encryptedClientSecret = encryptData(gr_client_secret, getEncryptionIV(gr_iv_salt));
@@ -103,10 +192,18 @@ const addGitRecord = async ( req, res) => {
           created_by,
           modified_by
         });
-        res.status(201).json(gitRecord);
+        res.status(201).json(gitRecord); // in order to change it, need to consult
       } catch (error) {
-        console.error('Error creating git Record:', error);
-        res.status(500).json({ error: 'Internal Server Error' });
+        // console.error('Error creating git Record:', error);
+        return sendResponse(
+          res, // response object
+          false, // success
+          HttpStatusCode.InternalServerError, // statusCode
+          responseObject.INTERNAL_SERVER_ERROR, // status type
+          `Internal Server Error: in creating a git record.`, // message
+          {}
+      );
+        // res.status(500).json({ error: 'Internal Server Error' });
       }
 }
 
@@ -116,7 +213,15 @@ const updateGitRecord = async (req, res) => {
     try {
         const gitRecord = await GitRepository.findByPk(gr_id);
         if (!gitRecord) {
-          res.status(404).json({ error: 'Git Record not found...' });
+          return sendResponse(
+            res, // response object
+            false, // success
+            HttpStatusCode.NotFound, // statusCode
+            responseObject.RECORD_NOT_FOUND, // status type
+            `No git record for id: ${gr_id}`, // message
+            {}
+        );
+          // res.status(404).json({ error: 'Git Record not found...' });
         } else {
           let {        
             gr_name,
@@ -155,8 +260,16 @@ const updateGitRecord = async (req, res) => {
           res.json(gitRecord);
         }
       } catch (error) {
-        console.error('Error updating git Record:', error);
-        res.status(500).json({ error: 'Internal Server Error' });
+        // console.error('Error updating git Record:', error);
+        return sendResponse(
+          res, // response object
+          false, // success
+          HttpStatusCode.InternalServerError, // statusCode
+          responseObject.INTERNAL_SERVER_ERROR, // status type
+          `Internal Server Error: in updating a git record.`, // message
+          {}
+      );
+        // res.status(500).json({ error: 'Internal Server Error' });
       }
 
 }

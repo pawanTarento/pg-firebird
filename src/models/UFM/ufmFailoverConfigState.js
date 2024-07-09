@@ -17,10 +17,6 @@ UFMFailoverConfigState.init({
     config_state_saved_on: {
         type: DataTypes.BIGINT,
         allowNull: true,
-        get() {
-            const rawValue = this.getDataValue('config_state_saved_on');
-            return rawValue ? new Date(rawValue * 1000).toISOString() : null;
-        },
     },
     short_comment: {
         type: DataTypes.TEXT,
@@ -38,10 +34,6 @@ UFMFailoverConfigState.init({
         type: DataTypes.BIGINT,
         allowNull: false,
         defaultValue: () => Math.floor(Date.now() / 1000), // Default to current epoch time
-        get() {
-            const rawValue = this.getDataValue('created_on');
-            return rawValue ? new Date(rawValue * 1000).toISOString() : null;
-        },
     },
     modified_by: {
         type: DataTypes.INTEGER,
@@ -51,10 +43,6 @@ UFMFailoverConfigState.init({
         type: DataTypes.BIGINT,
         allowNull: false,
         defaultValue: () => Math.floor(Date.now() / 1000), // Default to current epoch time
-        get() {
-            const rawValue = this.getDataValue('modified_on');
-            return rawValue ? new Date(rawValue * 1000).toISOString() : null;
-        },
     }
 
 }, {
@@ -79,6 +67,3 @@ module.exports = UFMFailoverConfigState;
 
 UFMFailoverConfigState.hasMany( UFMFailoverConfig, { foreignKey: 'config_state_id' });
 UFMFailoverConfig.belongsTo(UFMFailoverConfigState, { foreignKey: 'config_state_id' });
-
-
-

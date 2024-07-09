@@ -1,6 +1,5 @@
 const { DataTypes, Model } = require('sequelize');
 const sequelize = require('../../dbconfig/config');
-const UFMProfile = require('../ufmProfile');
 
 class UFMFailoverConfig extends Model {}
 
@@ -35,7 +34,7 @@ UFMFailoverConfig.init({
         allowNull: true
     },
     config_package_id: {
-        type: DataTypes.STRING(250),
+        type: DataTypes.STRING(50),
         allowNull: true
     },
     config_package_name: {
@@ -47,39 +46,39 @@ UFMFailoverConfig.init({
         allowNull: true
     },
     config_package_description: {
-        type: DataTypes.STRING(250),
+        type: DataTypes.TEXT,
         allowNull: true
     },
     config_package_short_text: {
         type: DataTypes.STRING(250),
         allowNull: true
     },
-    config_package_supported_platform : {
+    config_package_supported_platform: {
         type: DataTypes.STRING(250),
         allowNull: true
     },
     config_component_id: {
         type: DataTypes.STRING(250),
-        allowNull: true,
+        allowNull: true
     },
     config_component_name: {
         type: DataTypes.STRING(250),
-        allowNull: true,
-    },
-    config_component_dt_version: { //dt ->  designtime version
-        type: DataTypes.STRING(50), 
         allowNull: true
     },
-    config_component_rt_version: { // rt -> runtime version
-        type: DataTypes.STRING(50), 
+    config_component_dt_version: {
+        type: DataTypes.STRING(50),
+        allowNull: true
+    },
+    config_component_rt_version: {
+        type: DataTypes.STRING(50),
         allowNull: true
     },
     config_component_resource_id: {
-        type: DataTypes.STRING(50), 
+        type: DataTypes.STRING(250),
         allowNull: true
     },
     config_component_description: {
-        type: DataTypes.STRING(50), 
+        type: DataTypes.TEXT,
         allowNull: true
     },
     config_component_status: {
@@ -96,15 +95,12 @@ UFMFailoverConfig.init({
     },
     config_component_deployed_on: {
         type: DataTypes.BIGINT,
-        allowNull: true
+        allowNull: true,
     },
     config_timestamp: {
         type: DataTypes.BIGINT,
         allowNull: true,
-        get() {
-            const rawValue = this.getDataValue('config_timestamp');
-            return rawValue ? new Date(rawValue * 1000).toISOString() : null;
-        },
+        defaultValue: () => Math.floor(Date.now() / 1000),
     },
     ufm_profile_runtime_map_id: {
         type: DataTypes.INTEGER,
@@ -130,54 +126,16 @@ UFMFailoverConfig.init({
         type: DataTypes.STRING(250),
         allowNull: true
     },
-    config_component_created_by: {
-        type: DataTypes.INTEGER,
-        allowNull: true
-    },
-    config_component_created_on: {
-        type: DataTypes.BIGINT,
-        allowNull: true, 
-        defaultValue: () => Math.floor(Date.now() / 1000),
-        // get() {
-        //     const rawValue = this.getDataValue('config_component_created_on');
-        //     return rawValue ? new Date(rawValue * 1000).toISOString() : null;
-        // },
-    },
-    config_component_modified_by: {
-        type: DataTypes.INTEGER,
-        allowNull: true
-    },
-    config_component_modified_on: {
-        type: DataTypes.BIGINT,
-        allowNull: true, 
-        defaultValue: () => Math.floor(Date.now() / 1000),
-        // get() {
-        //     const rawValue = this.getDataValue('config_component_modified_on');
-        //     return rawValue ? new Date(rawValue * 1000).toISOString() : null;
-        // },
-    },
-    is_draft: {
-        type: DataTypes.BOOLEAN,
-        allowNull: true
-    }, 
-    is_deleted: {
-        type: DataTypes.BOOLEAN,
-        allowNull: true
-    }
 }, {
     sequelize,
     modelName: 'UFMFailoverConfig',
     tableName: 'ufm_failover_config',
-    createdAt: 'config_component_created_on', 
-    updatedAt: 'config_component_modified_on', 
+    createdAt: 'config_timestamp', 
+    updatedAt: false,
     timestamps: true,
     hooks: {
         beforeCreate: (record) => {
-            record.config_component_created_on = Math.floor(Date.now() / 1000);
-            record.config_component_modified_on = Math.floor(Date.now() / 1000);
-        },
-        beforeUpdate: (record) => {
-            record.config_component_modified_on = Math.floor(Date.now() / 1000);
+            record.config_timestamp = Math.floor(Date.now() / 1000);            
         }
     }
 

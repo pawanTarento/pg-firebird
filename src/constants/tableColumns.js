@@ -14,7 +14,8 @@ const userMasterColumns =[
     "is_admin",
     "first_logged_on",
     "last_logged_on",
-    "role"
+    "role",
+    "timezone_id"
 ];
 
 const gitMasterColumns = [
@@ -31,7 +32,9 @@ const gitMasterColumns = [
     "gr_iv_salt",
     "gr_state_id",
     "created_by",
-    "modified_by"
+    "modified_by",
+    "created_on",
+    "modified_on"
 ];
 
 const ufmProfileColumns = [
@@ -46,6 +49,8 @@ const ufmProfileColumns = [
     "ufm_profile_destination_runtime",
     "created_by",
     "modified_by", 
+    "created_on",
+    "modified_on"
 ]
 
 const tenantTableColumns = [
@@ -69,7 +74,9 @@ const tenantTableColumns = [
     "tenant_environment_id",
     "tenant_state_id",
     "created_by",
-    "modified_by"
+    "modified_by",
+    "modified_on",
+    "created_on"
 ];
 
 const taxonomyTableColumns =[ 
@@ -175,6 +182,41 @@ const UFMSyncHeaderTableColumns= [
     "modified_by",
 ]
 
+const UFMFailoverProcessTableColumns = [
+    "failover_process_id",
+    "config_state_id",
+    "ufm_profile_id",
+    "is_last_record",
+    "entry_type_id",
+    "is_process_initiated_progress_id",
+    "process_started_on",
+    "process_started_by",
+    "process_completed_on",
+    "created_on",
+    "created_by"
+]
+
+const UFMFailoverProcessComponentTableColumns = [
+    "failover_process_component_id",
+    "failover_process_id",
+    "config_id",
+    "config_package_id",
+    "config_component_id",
+    "config_component_dt_version",
+    "primary_tenant_runtime_status",
+    "primary_tenant_runtime_error",
+    "primary_tenant_runtime_started_on",
+    "primary_tenant_runtime_completed_on",
+    "primary_tenant_runtime_status_last_updated_on",
+    "secondary_tenant_runtime_status",
+    "secondary_tenant_runtime_error",
+    "secondary_tenant_runtime_started_on",
+    "secondary_tenant_runtime_completed_on",
+    "secondary_tenant_runtime_status_last_updated_on",
+    "created_on",
+    "created_by"
+]
+
 
 module.exports = {
     userMasterColumns,
@@ -185,5 +227,7 @@ module.exports = {
     UFMFailoverConfigStateTableColumns,
     UFMFailoverConfigTableColumns,
     UFMProfileRuntimeTableColumns,
-    UFMSyncHeaderTableColumns
+    UFMSyncHeaderTableColumns,
+    UFMFailoverProcessTableColumns,
+    UFMFailoverProcessComponentTableColumns
 }

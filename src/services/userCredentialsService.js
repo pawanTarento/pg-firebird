@@ -4,6 +4,9 @@ const UFMProfile = require("../models/ufmProfile");
 const { getBearerTokenForTenants, getBearerTokenForIFlow } = require("../util/auth");
 const { axiosInstance } = require("./cpiClient");
 const  sequelize  = require("../dbconfig/config");
+const { sendResponse } = require("../util/responseSender");
+const { HttpStatusCode } = require("axios");
+const { responseObject } = require("../constants/responseTypes");
 
 const getUserCredentials = async (req, res) => {
     try {
@@ -54,6 +57,14 @@ const getUserCredentials = async (req, res) => {
         return res.status(200).json( { data: mainResponseArray })
     } catch(error) {
         console.log('Error in service fn getUserCredentials: ', error);
+        return sendResponse(
+            res, // response object
+            false, // success
+            HttpStatusCode.InternalServerError, // statusCode
+            responseObject.INTERNAL_SERVER_ERROR, // status type
+            `Internal Server Error: in getting user credentials list.`, // message
+            {}
+        );
     }
 }
 
@@ -205,7 +216,15 @@ const copyUserCredentialsInfo = async (req, res) => {
   } catch(err){
         await transaction.rollback();
         console.log('Error in service post user credential: ');
-        return res.status(500).json({ error: `Internal Server Error: ${err.message}`})
+        return sendResponse(
+            res, // response object
+            false, // success
+            HttpStatusCode.InternalServerError, // statusCode
+            responseObject.INTERNAL_SERVER_ERROR, // status type
+            `Internal Server Error: in copying user credentials`, // message
+            {}
+        );
+        // return res.status(500).json({ error: `Internal Server Error: ${err.message}`})
     }
 
 }   

@@ -1,7 +1,10 @@
 const { UFMFailoverConfigStateTableColumns, UFMFailoverConfigTableColumns } = require("../constants/tableColumns");
-const UFMFailoverConfig = require("../models/UFM/ufmFailoverConfig");
+const UFMFailoverConfig = require("../models/UFM/ufmFailoverConfig_old");
 const UFMFailoverConfigState = require("../models/UFM/ufmFailoverConfigState");
 const  sequelize  = require("../dbconfig/config");
+const { sendResponse } = require("../util/responseSender");
+const { HttpStatusCode } = require("axios");
+const { responseObject } = require("../constants/responseTypes");
 
 
 const addFailoverConfigStateRecord = async (req, res) => {
@@ -40,19 +43,37 @@ const addFailoverConfigStateRecord = async (req, res) => {
         await UFMFailoverConfig.bulkCreate(newConfigs, { transaction });
     
         await transaction.commit();
-        console.log('Transaction: ', transaction);
-        return res.status(200).json({message: "Config setting saved successfully."})
+        // console.log('Transaction: ', transaction);
+
+        return sendResponse(
+            res, // response object
+            true, // success
+            HttpStatusCode.Ok, // statusCode
+            responseObject.RECORD_CREATE, // status type
+            `Config setting saved successfully`, // message
+            {} // data
+          );
+
+        // return res.status(200).json({message: "Config setting saved successfully."})
 
     }catch(error) {
         await transaction.rollback();
         console.error('Error creating UFMFailoverConfigState and UFMFailoverConfig instances:', error);
-        return res.status(500).json({message: "Config setting saved successfully."})
+        return sendResponse(
+            res, // response object
+            false, // success
+            HttpStatusCode.InternalServerError, // statusCode
+            responseObject.INTERNAL_SERVER_ERROR, // status type
+            `Internal Server Error: in creating a ufm_failover_config record.`, // message
+            {}
+        );
+        // return res.status(500).json({message: "Config setting saved successfully."})
     }
 
 }
 
 const modifyFailoverConfigStateRecord = (req, res) => {
-    return res.status(200).json({message: "Hello, World! from modifyFailoverConfigStateRecord"});
+    return res.status(200).json({message: "Not created this api for now: from modifyFailoverConfigStateRecord"});
 
 }
 
@@ -61,14 +82,37 @@ const deleteFailoverConfigStateRecord = async (req, res, configStateId) => {
     try{
         const response = await UFMFailoverConfigState.findByPk(configStateId);
         if (!response) {
-          res.status(404).json({ error: 'configStateId not found for deletion' });
+            return sendResponse(
+                res, // response object
+                false, // success
+                HttpStatusCode.NotFound, // statusCode
+                responseObject.RECORD_NOT_FOUND, // status type
+                `Data not found for config state id: ${configStateId}`, // message
+                 {}
+            );
+        //   res.status(404).json({ error: 'configStateId not found for deletion' });
         } else {
           await response.destroy();
         //   res.status(204).end();
-        return res.status(204).json({message: "Record deleted successfully."})
+        return sendResponse(
+            res, // response object
+            true, // success
+            HttpStatusCode.Ok, // statusCode 200
+            responseObject.RECORD_DELETE, // status type
+            `Record deleted for config state id: ${response.config_state_id}`, // message
+             {}
+        );
+        // return res.status(204).json({message: "Record deleted successfully."})
         }
     } catch(error) {
-        console.log('Error in service function: deleteFailoverConfigStateRecord: ', error);
+        return sendResponse(
+            res, // response object
+            false, // success
+            HttpStatusCode.InternalServerError, // statusCode
+            responseObject.INTERNAL_SERVER_ERROR, // status type
+            `Internal Server Error: in deleting a ufm_failover_config record.`, // message
+            {}
+        );
     }
 
 }
@@ -88,13 +132,37 @@ const allFailoverConfigStateRecords = async (req, res) => {
             ]
         });
         if (!response) {
-            return res.status(200).json({ message: "No records for failover config state"})
+            return sendResponse(
+                res, // response object
+                false, // success
+                HttpStatusCode.NotFound, // statusCode
+                responseObject.RECORD_NOT_FOUND, // status type
+                `No record for failover config state for ufm profile id: ${ufmProfileId}`, // message
+                 {}
+            );
+            // return res.status(200).json({ message: "No records for failover config state"})
         }
         
-        return res.status(200).json({data: response});
+        return sendResponse(
+            res, // response object
+            true, // success
+            HttpStatusCode.Ok, // statusCode
+            responseObject.RECORD_FOUND, // status type
+            `A list of all config state records`, // message
+             response
+          );
+        // return res.status(200).json({data: response});
 
     } catch(error) {
-        console.log('Error in service function: AllFailoverConfigStateRecords: ', error);
+        return sendResponse(
+            res, // response object
+            false, // success
+            HttpStatusCode.InternalServerError, // statusCode
+            responseObject.INTERNAL_SERVER_ERROR, // status type
+            `Internal Server Error: in creating a ufm_failover_config record.`, // message
+            {}
+        );
+        // console.log('Error in service function: AllFailoverConfigStateRecords: ', error);
     }
 
 }
@@ -115,13 +183,38 @@ const getSingleFailoverConfigStateRecord = async (req, res,ufmProfileId) => {
         ]
         });
         if (!response) {
-            return res.status(200).json({ message: "No record for failover config state Id"})
+            return sendResponse(
+                res, // response object
+                false, // success
+                HttpStatusCode.NotFound, // statusCode
+                responseObject.RECORD_NOT_FOUND, // status type
+                `No record for failover config state for ufm profile id: ${ufmProfileId}`, // message
+                 {}
+            );
+            // return res.status(200).json({ message: "No record for failover config state Id"})
         }
         
-        return res.status(200).json({data: response});
+        return sendResponse(
+            res, // response object
+            true, // success
+            HttpStatusCode.Ok, // statusCode
+            responseObject.RECORD_FOUND, // status type
+            `A record of ufm_failover_config`, // message
+             response
+          );
+
+        // return res.status(200).json({data: response});
 
     } catch(error) {
         console.log('Error in service function: getSingleFailoverConfigStateRecord: ', error);
+        return sendResponse(
+            res, // response object
+            false, // success
+            HttpStatusCode.InternalServerError, // statusCode
+            responseObject.INTERNAL_SERVER_ERROR, // status type
+            `Internal Server Error: in getting a ufm_failover_config record.`, // message
+            {}
+        );
     }
 
 }
