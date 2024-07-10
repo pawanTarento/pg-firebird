@@ -388,7 +388,7 @@ const schedulePlannedFailoverForTenants = async (req, res) => {
                 config_id: item.config_id,
                 config_package_id: item.config_package_id,
                 config_component_id: item.config_component_id,
-                config_component_position: item.config_component_position,
+                config_component_position: item.config_component_position, // changed here
                 config_component_dt_version: item.config_component_dt_version,
                 primary_tenant_runtime_status: "PENDING", // state assigned by us 
                 primary_tenant_runtime_error: null,

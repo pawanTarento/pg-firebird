@@ -13,7 +13,6 @@ const UFMFailoverProcessComponent = require("../models/UFM/ufmFailoverProcessCom
 
 
 const processFailoverJob = async () => {
-    console.log('\nRunning this function in process failover job: ', new Date());
 
     try {
 
@@ -65,7 +64,7 @@ const processFailoverJob = async () => {
 
         if (FOSB_query) {
               // update the scheduled failover/switchback to running
-            console.log('\n xyz: ', FAILOVER_PROCESS_STATUS.RUNNING, FOSB_query.failover_process_id )
+            console.log('\n---> ', FAILOVER_PROCESS_STATUS.RUNNING, FOSB_query.failover_process_id )
 
             const updateFailoverProcessTable = await UFMFailoverProcess.update(
                 {
@@ -147,12 +146,25 @@ const getCommonInformationForActivity = async (FOSB_query) => {
         token: tenantOneBearerToken
        })
 
+       const axiosInstanceTenantTwoGlobalVariable = axiosInstance({
+        url: tenantTwoDbResponse.tenant_host_url,
+        responseType: 'stream',
+        token: tenantTwoBearerToken
+       })
+
        const axiosInstanceTenantTwo = axiosInstance({
            url: tenantTwoDbResponse.tenant_host_url,
            token: tenantTwoBearerToken
        });
 
-       const tenantTwoUtilBearerToken = await getBearerTokenForIFlow (tenantTwoDbResponse) ;
+       const tenantOneUtilBearerToken = await getBearerTokenForIFlow (tenantOneDbResponse);
+
+       const axiosInstanceUtilTenantOne = axiosInstance({
+        url: tenantOneDbResponse.tenant_util_host_url,
+        token: tenantOneUtilBearerToken
+       })
+
+       const tenantTwoUtilBearerToken = await getBearerTokenForIFlow (tenantTwoDbResponse);
        
        const axiosInstanceUtilTenantTwo = axiosInstance({
         url: tenantTwoDbResponse.tenant_util_host_url,
@@ -173,14 +185,16 @@ const getCommonInformationForActivity = async (FOSB_query) => {
             }
         } 
     
-        // reverse the primary and secondary for switch back activity
+        // in switch back, tenantTwo would serve as primary and tenantOne as secondary
         if (FOSB_query.entry_type_id === SWITCH_BACK_ENTRY_TYPE) {
             commonInputData = {
                 primaryTenantId: ufmProfileResponse.ufm_profile_secondary_tenant_id,
                 secondaryTenantId: ufmProfileResponse.ufm_profile_primary_tenant_id,
                 activity_type: SWITCH_BACK_ENTRY_TYPE,
                 axiosInstancePrimaryTenant: axiosInstanceTenantTwo,
+                axiosInstancePrimaryTenantGlobalVariable: axiosInstanceTenantTwoGlobalVariable,
                 axiosInstanceSecondaryTenant: axiosInstanceTenantOne,
+                axiosInstanceUtilSecondaryTenant: axiosInstanceUtilTenantOne,
                 failoverProcessId: FOSB_query.failover_process_id
             }
         }
@@ -196,12 +210,13 @@ const getCommonInformationForActivity = async (FOSB_query) => {
 
 
 const performFailoverActivity = async (commonInputData) => {
-    // const isHeartBeatActivityPerformed = await heartBeatServiceProcedure(commonInputData);
+    const isHeartBeatActivityPerformed = await heartBeatServiceProcedure(commonInputData);
 
-    // if (isHeartBeatActivityPerformed) {
-    //     console.log('\nHeart beat activity performed');
-    // }
+    if (isHeartBeatActivityPerformed) {
+        console.log('\nHeart beat activity performed');
+    }
 
+    // undeploy artifact from primary tenant
     const isUndeployed = await undeployArtifacts(commonInputData);
 
     if (isUndeployed) {
@@ -211,7 +226,7 @@ const performFailoverActivity = async (commonInputData) => {
     const isCopiedGlobalVariables = await copyGlobalVariables(commonInputData);
 
     if (isCopiedGlobalVariables) {
-        console.log('\n copied global variables')
+        console.log('\nGlobal variables copied')
     }
 
     const isNumberRangesCopied = await copyNumberRanges(commonInputData);
@@ -223,15 +238,39 @@ const performFailoverActivity = async (commonInputData) => {
     let isDeployed = await deployArtifacts(commonInputData);
 
     if (isDeployed) {
-        console.log('deployed artifacts');
+        console.log('\ndeployed artifacts on secondary tenant');
     }
 
-    if (   isUndeployed
+    if (   isHeartBeatActivityPerformed 
+        && isUndeployed
         && isCopiedGlobalVariables
         && isNumberRangesCopied
         && isDeployed
     ) {
         console.log('\nFailover completed successfully');
+        const updateFailoverProcessTable = await UFMFailoverProcess.update(
+            {
+                is_process_initiated_progress_id: FAILOVER_PROCESS_STATUS.COMPLETED
+            },
+            {
+                where: {
+                    failover_process_id: commonInputData.failoverProcessId
+                },
+                // transaction
+            }
+        );
+    } else {
+        const updateFailoverProcessTable = await UFMFailoverProcess.update(
+            {
+                is_process_initiated_progress_id: FAILOVER_PROCESS_STATUS.FAILED
+            },
+            {
+                where: {
+                    failover_process_id: commonInputData.failoverProcessId
+                },
+                // transaction
+            }
+        );
     }
 
 }
@@ -239,6 +278,35 @@ const performFailoverActivity = async (commonInputData) => {
 // this function collects all the required info/resources at one places -> to make the code modular
 
 const performSwitchbackActivity = async (commonInputData) => {
+    // const isUndeployed = await undeployArtifacts(commonInputData) ;
+
+    // if (isUndeployed) {
+    //     console.log('\nSWITCH_BACK: Undeployed artifacts from secondary site');
+    // }
+
+    // const isCopiedGlobalVariables = await copyGlobalVariables(commonInputData);
+
+    // if (isCopiedGlobalVariables) {
+    //     console.log('\nSWITCH_BACK: Global variables copied from secondary to primary site')
+    // }
+
+    // const isNumberRangesCopied = await copyNumberRanges(commonInputData);
+
+    // if (isNumberRangesCopied) {
+    //     console.log('\nSWITCH_BACK: Number Ranges copied');
+    // }
+
+    let isDeployed = await deployArtifacts(commonInputData);
+
+    if (isDeployed) {
+        console.log('\ndeployed artifacts on secondary tenant');
+    }
+
+    // const isHeartBeatActivityPerformed = await heartBeatServiceProcedure(commonInputData);
+
+    // if (isHeartBeatActivityPerformed) {
+    //     console.log('\nHeart beat activity performed');
+    // }
 
 }
 
@@ -251,31 +319,47 @@ const heartBeatServiceProcedure = async (commonInputData) => {
         if (commonInputData.activity_type === FAILOVER_ENTRY_TYPE) {
             activity_type = 'Failover';
             try {
-                const healthProbleUrl = `/api/v1/IntegrationRuntimeArtifacts('ping_healthprobe')`;
-                let responseHealthProbe = await commonInputData.axiosInstanceSecondaryTenant.get(healthProbleUrl);
+                //check if the heartbeat is present in the secondary 
+                const healthProbeUrl = `/api/v1/IntegrationRuntimeArtifacts('ping_healthprobe')`;
+                let responseHealthProbe = await commonInputData.axiosInstanceSecondaryTenant.get(healthProbeUrl);
     
                 if (responseHealthProbe) {
                     isHeartBeatActivityPerformed = true;
-                    console.log('\nFailover: Heart beat is there\n');
+                    console.log('\nFailover: Heart beat is there in secondary tenant\n');
                 } 
             } catch(error) {
-                // if error set the health probe to deployed state in secondary
+                if (error.response && error.response.status === 404) {
+                    errorMessage = `Artifact id: ping_healthprobe is already undeployed (404 error) or not found.`;
+                    console.error(errorMessage);
+                } else {
+                    console.error(`Error in getting ping_healthprobe.`);
+              
+                }
+                // if error, the health probe to deployed state in secondary
                 const deployHealthProbeUrl = `/api/v1/DeployIntegrationDesigntimeArtifact?Id='ping_healthprobe'&Version='1.0.10'`; // remove hardcoding
                 let deployHealthProbe = await commonInputData.axiosInstanceSecondaryTenant.post(deployHealthProbeUrl);
 
                 if (deployHealthProbe) {
                     console.log('\nFailover: health probe deployed');
+                    isHeartBeatActivityPerformed = true;
                 }
             }
 
             // undeploy from primary tenant
-            const undeployHealthProbeUrl = `/api/v1/IntegrationRuntimeArtifacts('ping_healthprobe')`
-            let undeployHealthProbe = await commonInputData.axiosInstancePrimaryTenant.delete(undeployHealthProbeUrl);
+            try {
+                const undeployHealthProbeUrl = `/api/v1/IntegrationRuntimeArtifacts('ping_healthprobe')`
+                let undeployHealthProbe = await commonInputData.axiosInstancePrimaryTenant.delete(undeployHealthProbeUrl);
+    
+                if (undeployHealthProbe) {
+                    console.log('\nUndeployed artifact: ping_healthprobe from primary tenant');
+                }
 
-            if (undeployHealthProbe) {
-                console.log('\nUndeployed from primary\n');
+                isHeartBeatActivityPerformed = true;
+            } catch(error) {
+                console.log('\nError in undeploying artifact: ping_healthprobe from primary tenant');
             }
-
+       
+            return isHeartBeatActivityPerformed;
         }
     
         if (commonInputData.activity_type === SWITCH_BACK_ENTRY_TYPE) {
@@ -335,11 +419,9 @@ function compareNumberRanges(source, target) {
     return result;
 }
 
-
-// need proper try-catch block everywhere
 const copyNumberRanges = async (commonInputData) => {
 
-    if (commonInputData.activity_type === FAILOVER_ENTRY_TYPE) {
+    // if (commonInputData.activity_type === FAILOVER_ENTRY_TYPE) {
         try{
             let [numberRangesTenantOneResponse, numberRangesTenantTwoResponse ] = await Promise.all([
                 await commonInputData.axiosInstancePrimaryTenant.get("/api/v1/NumberRanges"),
@@ -358,6 +440,7 @@ const copyNumberRanges = async (commonInputData) => {
                 const targetUrl = numberRangeObj.doesExistOnTarget 
                     ? `/api/v1/NumberRanges('${numberRangeObj.Name}')` // this is for put
                     : '/api/v1/NumberRanges'; // this for post
+
                 const requestMethod = numberRangeObj.doesExistOnTarget ? 'put' : 'post';
                 
                 let response;
@@ -394,20 +477,20 @@ const copyNumberRanges = async (commonInputData) => {
             console.log('\nError during copying Number Ranges', error);
         }
         
-    } 
+    // } 
 
-    if (commonInputData.activity_type === SWITCH_BACK_ENTRY_TYPE) {
+    // if (commonInputData.activity_type === SWITCH_BACK_ENTRY_TYPE) {
 
 
-        return true;
-    }
+    //     return true;
+    // }
 
 
     return true;
 }
 
 const copyGlobalVariables = async (commonInputData) => {
-    if (commonInputData.activity_type === FAILOVER_ENTRY_TYPE) {
+    // if (commonInputData.activity_type === FAILOVER_ENTRY_TYPE) {
 
         let variablesTenantOneResponse = await commonInputData.axiosInstancePrimaryTenant.get("/api/v1/Variables");
         let variablesTenantOne = variablesTenantOneResponse.data.d.results;
@@ -480,13 +563,13 @@ const copyGlobalVariables = async (commonInputData) => {
           const promises = variablesTenantOne.map(copyVariables);
           await Promise.all(promises);
           return true;
-    }
+    // }
 
 
-    if (commonInputData.activity_type === SWITCH_BACK_ENTRY_TYPE) {
+    // if (commonInputData.activity_type === SWITCH_BACK_ENTRY_TYPE) {
 
-        return true;
-    }
+    //     return true;
+    // }
 
     return true;
 }
@@ -574,7 +657,7 @@ if (commonInputData.activity_type === FAILOVER_ENTRY_TYPE) {
             await UFMFailoverProcessComponent.update(
                 {
                     primary_tenant_runtime_error: errorMessage,
-                    primary_tenant_runtime_status: "UNDEPLOYMENT_ERROR"
+                    primary_tenant_runtime_status: "ALREADY_UNDEPLOYED"
                 },
                 {
                     where: {
@@ -595,6 +678,99 @@ if (commonInputData.activity_type === FAILOVER_ENTRY_TYPE) {
 
 if (commonInputData.activity_type === SWITCH_BACK_ENTRY_TYPE) {
 
+ const failoverProcessComponent = await UFMFailoverProcessComponent.findAll({
+        where:{
+            failover_process_id: commonInputData.failoverProcessId
+        },
+        order: [['failover_process_component_id', 'DESC']],
+        // limit: 30
+    })
+
+    if (!failoverProcessComponent) {
+        console.log('\nFailover process component data not found for failover process id:', commonInputData.failover_process_id)
+    }
+
+    // update the fields for timestamps
+    await UFMFailoverProcessComponent.update(
+        {
+            secondary_tenant_runtime_started_on: null,
+            secondary_tenant_runtime_completed_on: null,
+            secondary_tenant_runtime_error: null
+
+        },
+        {
+            where: {
+                failover_process_id: commonInputData.failoverProcessId
+            }
+        }
+    );
+
+    let counterArtifacts = 0;
+    const promisesForUndeploying = failoverProcessComponent.map(async (component) => {
+        try {
+            // In case an artifact is already undeployed, undeploying it would result in 404
+
+            await UFMFailoverProcessComponent.update(
+                {
+                    secondary_tenant_runtime_started_on:  Math.floor(Date.now() / 1000)
+                },
+                {
+                    where: {
+                        failover_process_component_id: component.failover_process_component_id
+                    }
+                }
+            );
+
+            counterArtifacts++;
+
+            let undeployArtifactsUrl = `/api/v1/IntegrationRuntimeArtifacts('${component.config_component_id}')`;
+            let undeployedArtifact = await commonInputData.axiosInstancePrimaryTenant.delete(undeployArtifactsUrl);
+
+            if (undeployedArtifact) {
+                console.log(`Artifact undeployed is: `, component.config_component_id);
+                
+                await UFMFailoverProcessComponent.update(
+                    {
+                        secondary_tenant_runtime_completed_on:  Math.floor(Date.now() / 1000),
+                        secondary_tenant_runtime_status: "UNDEPLOYED"
+                    },
+                    {
+                        where: {
+                            failover_process_component_id: component.failover_process_component_id
+                        }
+                    }
+                );
+            }
+
+        } catch (error) {
+            let errorMessage = '';
+
+            if (error.response && error.response.status === 404) {
+                errorMessage = `Artifact id: ${component.config_component_id} is already undeployed (404 error) or not found.`;
+                console.error(errorMessage);
+            } else {
+                console.error(`Error undeploying artifact with id ${component.config_component_id}:`);
+                let errorString = JSON.stringify(error);
+                errorMessage = errorString.substring(0, 1024);
+            }
+
+            await UFMFailoverProcessComponent.update(
+                {
+                    secondary_tenant_runtime_error: errorMessage,
+                    secondary_tenant_runtime_status: "ALREADY_UNDEPLOYED"
+                },
+                {
+                    where: {
+                        failover_process_component_id: component.failover_process_component_id
+                    }
+                }
+            );
+        }
+    });
+
+    // since there is no particular order of undeployment, we are using promise.all 
+    await Promise.all(promisesForUndeploying);
+    console.log('\nCounter artifacts: ', counterArtifacts)
     return true;
 }
 
@@ -702,9 +878,103 @@ const deployArtifacts = async (commonInputData) => {
         }
 
         return true;
-    }
+    } // if ends here - for failover 
 
     if (commonInputData.activity_type === SWITCH_BACK_ENTRY_TYPE) {
+        try {
+
+            const failoverProcessComponent = await UFMFailoverProcessComponent.findAll({
+                where:{
+                    failover_process_id: commonInputData.failoverProcessId
+                },
+                order: [['config_component_position', 'ASC']],
+            });
+
+            if (!failoverProcessComponent) {
+                console.log('\nFailover process component data not found for failover process id:', commonInputData.failover_process_id)
+                // throw Error(`Failover process component data not found for failover process id: ${commonInputData.failover_process_id}`)
+            }
+
+              // update the fields for timestamps
+        await UFMFailoverProcessComponent.update(
+            {
+                primary_tenant_runtime_started_on: null,
+                primary_tenant_runtime_completed_on: null,
+                primary_tenant_runtime_error: null
+
+            },
+            {
+                where: {
+                    failover_process_id: commonInputData.failoverProcessId
+                }
+            }
+        );
+
+        // for loop -> in order to hit APIs one by one 
+        for (let i = 0; i < failoverProcessComponent.length; i++) {
+            try {
+                await UFMFailoverProcessComponent.update(
+                    {
+                        primary_tenant_runtime_started_on: Math.floor(Date.now() / 1000)
+                    },
+                    {
+                        where: {
+                            failover_process_component_id: failoverProcessComponent[i].failover_process_component_id
+                        }
+                    }
+                );
+        
+                let deployArtifactsUrl = `/api/v1/DeployIntegrationDesigntimeArtifact?Id='${failoverProcessComponent[i].config_component_id}'&Version='${failoverProcessComponent[i].config_component_dt_version}'`;
+                
+                let deployedArtifact = await commonInputData.axiosInstanceSecondaryTenant.post(deployArtifactsUrl);
+        
+                if (deployedArtifact) {
+                    console.log(`Artifact deployed is: `, failoverProcessComponent[i].config_component_id);
+                    
+                    await UFMFailoverProcessComponent.update(
+                        {
+                            primary_tenant_runtime_completed_on: Math.floor(Date.now() / 1000),
+                            primary_tenant_runtime_status: "DEPLOYED"
+                        },
+                        {
+                            where: {
+                                failover_process_component_id: failoverProcessComponent[i].failover_process_component_id
+                            }
+                        }
+                    );
+                }
+            } catch (error) {
+                let errorMessage = '';
+        
+                if (error.response && error.response.status === 404) {
+                    errorMessage = `Artifact id: ${failoverProcessComponent[i].config_component_id} is not found.`;
+                    console.error(errorMessage);
+                } else {
+                    console.error(`Error deploying artifact with id ${failoverProcessComponent[i].config_component_id}:`);
+        
+                    let errorString = JSON.stringify(error);
+                    errorMessage = errorString.substring(0, 1024);
+                }
+        
+                await UFMFailoverProcessComponent.update(
+                    {
+                        primary_tenant_runtime_error: errorMessage,
+                        primary_tenant_runtime_status: "DEPLOYMENT_ERROR"
+                    },
+                    {
+                        where: {
+                            failover_process_component_id: failoverProcessComponent[i].failover_process_component_id
+                        }
+                    }
+                );
+            }
+        } // for loop ends here
+        
+
+
+        } catch(error) {
+            console.log('\nError in deploying artifacts on secondary : ', error.message)
+        }
 
         return true;
     }
