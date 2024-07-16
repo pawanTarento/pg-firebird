@@ -65,6 +65,10 @@ UFMFailoverConfig.init({
         type: DataTypes.STRING(250),
         allowNull: true
     },
+    config_component_type: {
+        type: DataTypes.STRING(50),
+        allowNull: true
+    },
     config_component_dt_version: {
         type: DataTypes.STRING(50),
         allowNull: true

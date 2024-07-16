@@ -22,6 +22,10 @@ UFMFailoverProcessComponent.init({
         type: DataTypes.STRING(250),
         allowNull: true
     },
+    config_package_name: {
+        type: DataTypes.STRING(250),
+        allowNull: true
+    },
     config_component_group_name: { // keeping it null/unused for now
         type: DataTypes.STRING(50),
         allowNull: true
@@ -36,6 +40,14 @@ UFMFailoverProcessComponent.init({
     },
     config_component_id: {
         type: DataTypes.STRING(250),
+        allowNull: true
+    },
+    config_component_name: {
+        type: DataTypes.STRING(250),
+        allowNull: true
+    },
+    config_component_type: {
+        type: DataTypes.STRING(50),
         allowNull: true
     },
     config_component_dt_version: {

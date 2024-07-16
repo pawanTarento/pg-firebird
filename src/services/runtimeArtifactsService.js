@@ -20,110 +20,108 @@ const {
 const { Op } = require('sequelize');
 
 
-    const getSourceTenantRuntimeWithTargetTenantDesigntimeArtifacts = async (req, res) => {
-        const { ufmProfileId } = req.params;
-        try {
-            const ufmProfileResponse = await UFMProfile.findOne({
+const getSourceTenantRuntimeWithTargetTenantDesigntimeArtifacts = async (req, res) => {
+    const { ufmProfileId } = req.params;
+    try {
+        const ufmProfileResponse = await UFMProfile.findOne({
+            where: {
+                ufm_profile_id: ufmProfileId
+            },
+        });
+
+        if (!ufmProfileResponse) {
+            return res.status(400).json({ error: "UFM Profile id not found" })
+        }
+
+        let { mainResponseArray, axiosInstanceTenantOne } = await integrationPackageService.getOneTenantPackagesWithArtifacts(ufmProfileResponse.ufm_profile_primary_tenant_id, true, false);
+
+        let packagesWithArtifacts = mainResponseArray.packages; // using the packages for tenant 1
+
+        let responseRuntime = await axiosInstanceTenantOne.get(`/api/v1/IntegrationRuntimeArtifacts`);
+        let responseRuntimeResult = responseRuntime.data.d.results;
+        // Create a map of runtime artifacts for quick lookup by Id
+        let runtimeArtifactsMap = new Map(responseRuntimeResult.map(item => {
+            let Runtime = {
+                Version: item.Version,
+                Type: item.Type,
+                DeployedBy: item.DeployedBy,
+                DeployedOn: item.DeployedOn,
+                Status: item.Status,
+                ErrorInformation: item.ErrorInformation
+            }
+            return [item.Id, Runtime]
+        }));
+
+        const configState = await UFMFailoverConfigState.findOne({
+            where: {
+                ufm_profile_id: ufmProfileId,
+                is_last_record: true
+            }
+        });
+
+        let failoverConfigData;
+
+        if (configState && configState.config_state_id) {
+            failoverConfigData = await UFMFailoverConfig.findAll({
                 where: {
-                    ufm_profile_id: ufmProfileId
+                    config_state_id: configState.config_state_id,
+                    ufm_profile_id: ufmProfileId,
                 },
             });
-    
-            if (!ufmProfileResponse) {
-                return sendResponse(
-                    res, // response object
-                    false, // success
-                    HttpStatusCode.NotFound, // statusCode
-                    responseObject.RECORD_NOT_FOUND, // status type
-                    `Record for ufm profile id: ${ufmProfileId} not found`, // message
-                    {}
-                );
-            }
-    
-            let { mainResponseArray, axiosInstanceTenantOne } = await integrationPackageService.getOneTenantPackagesWithArtifacts(ufmProfileResponse.ufm_profile_primary_tenant_id, true, false);
-    
-            let packagesWithArtifacts = mainResponseArray.packages; // using the packages for tenant 1
-    
-            let responseRuntime = await axiosInstanceTenantOne.get(`/api/v1/IntegrationRuntimeArtifacts`);
-            let responseRuntimeResult = responseRuntime.data.d.results;
-            // Create a map of runtime artifacts for quick lookup by Id
-            let runtimeArtifactsMap = new Map(responseRuntimeResult.map(item => {
-                let Runtime = {
-                    Version: item.Version,
-                    Type: item.Type,
-                    DeployedBy: item.DeployedBy,
-                    DeployedOn: item.DeployedOn,
-                    Status: item.Status,
-                    ErrorInformation: item.ErrorInformation
-                }
-                return [item.Id, Runtime]
-            }));
-    
-            const configState = await UFMFailoverConfigState.findOne({
-                where: {
-                    ufm_profile_id: ufmProfileId,
-                    is_last_record: true
-                }
-            });
-    
-            let failoverConfigData;
-    
-            if (configState && configState.config_state_id) {
-                failoverConfigData = await UFMFailoverConfig.findAll({
-                    where: {
-                        config_state_id: configState.config_state_id,
-                        ufm_profile_id: ufmProfileId,
-                    },
-                });
-            }
-    
-            // let failoverConfigStateData = await UFMFailoverConfigState.findOne({
-            //     where: {
-            //         ufm_profile_id: ufmProfileId,
-            //         is_last_record: true
-            //     },
-            //     include: [{
-            //         model: UFMFailoverConfig,
-            //         where: {
-            //             ufm_profile_id: ufmProfileId,
-            //         }
-            //     }]
-            // });
-    
-            let ufmFailoverConfigMap = new Map((failoverConfigData || []).map(item => {
-                let config = {
-                    isRowSelected: item.config_component_row_select,
-                    priority: item.config_component_position,
-                }
-                return [item.Id, config];
-            }));
-    
-            // Update artifact versions with runtime versions
-            packagesWithArtifacts.forEach(item => {
-                item.artifacts.forEach(artifactItem => {
-                    artifactItem.isDeployedOnPrimaryTenant = runtimeArtifactsMap.has(artifactItem.Id) ? true : false;
-                    if (runtimeArtifactsMap.has(artifactItem.Id)) {
-                        artifactItem.Runtime = runtimeArtifactsMap.get(artifactItem.Id);
-                    }
-                    if (ufmFailoverConfigMap.has(artifactItem.Id)) {
-                        artifactItem = { ...artifactItem, ...ufmFailoverConfigMap.get(artifactItem.Id) }
-                    }
-                });
-    
-            });
-    
-            // Return the updated packages with artifacts
-            return res.status(HttpStatusCode.Ok).json({
-                data: {
-                    key: mainResponseArray.key,
-                    packages: packagesWithArtifacts
-                }
-            });
-        } catch (error) {
-            console.log('Service fn: getSourceTenantRuntimeWithTargetTenant error:', error);
-            res.status(HttpStatusCode.NotFound).json({ 'message': 'Cannot get data.' });
         }
+
+        // let failoverConfigStateData = await UFMFailoverConfigState.findOne({
+        //     where: {
+        //         ufm_profile_id: ufmProfileId,
+        //         is_last_record: true
+        //     },
+        //     include: [{
+        //         model: UFMFailoverConfig,
+        //         where: {
+        //             ufm_profile_id: ufmProfileId,
+        //         }
+        //     }]
+        // });
+
+        let ufmFailoverConfigMap = new Map((failoverConfigData || []).map(item => {
+            let config = {
+                isRowSelected: item.config_component_row_select,
+                priority: item.config_component_position,
+                // configStateId: item.config_state_id
+            }
+            return [item.config_component_id, config];
+        }));
+
+        // Update artifact versions with runtime versions
+        packagesWithArtifacts.forEach(item => {
+            item.artifacts.forEach(artifactItem => {
+                artifactItem.isDeployedOnPrimaryTenant = runtimeArtifactsMap.has(artifactItem.Id) ? true : false;
+                if (runtimeArtifactsMap.has(artifactItem.Id)) {
+                    artifactItem.Runtime = runtimeArtifactsMap.get(artifactItem.Id);
+                }
+                if (ufmFailoverConfigMap.has(artifactItem.Id)) {
+                    const configs = ufmFailoverConfigMap.get(artifactItem.Id);
+                    artifactItem.isRowSelected = configs.isRowSelected;
+                    artifactItem.priority = configs.priority;
+                    // artifactItem.configStateId = configs.configStateId;
+                }
+            });
+
+        });
+        
+        // Return the updated packages with artifacts
+        return res.status(HttpStatusCode.Ok).json({
+            data: {
+                key: mainResponseArray.key,
+                packages: packagesWithArtifacts,
+                configStateId: (failoverConfigData && failoverConfigData.length > 0) ? failoverConfigData[0].config_state_id : null
+            }
+        });
+    } catch (error) {
+        console.log('Service fn: getSourceTenantRuntimeWithTargetTenant error:', error);
+        res.status(HttpStatusCode.NotFound).json({ 'message': 'Cannot get data.' });
     }
+}
 
 const postFailoverConfig = async (req, res) => {
     const userId = req.body.userId;
@@ -243,6 +241,45 @@ const schedulePlannedFailoverForTenants = async (req, res) => {
             }
  
         }
+
+        // this query is a failsafe. In case the Failover/switchback buttons dont get enabled/disabled due
+        // to some frontend issue, then this code block would not allow failover/switchback activity to happen again
+        let avoidDuplicateActivityQuery = await UFMFailoverProcess.findOne( {
+                where:  {
+                    config_state_id : config_state_id, 
+                    is_last_record: true,
+                    is_process_initiated_progress_id: FAILOVER_PROCESS_STATUS.SCHEDULED
+                }
+               })
+            
+            if (avoidDuplicateActivityQuery) {
+                if (avoidDuplicateActivityQuery.entry_type_id === FAILOVER_ENTRY_TYPE && entry_type === "FAILOVER") {
+                    
+                    return sendResponse(
+                        res, // response object
+                        false, // success
+                        HttpStatusCode.BadRequest, // statusCode
+                        responseObject.RESPONSE_NEGATIVE, // status type
+                        `Already a Failover is scheduled, cannot schedule Failover again`, // message
+                        {} // data
+                    );
+                }
+    
+                if (avoidDuplicateActivityQuery.entry_type_id === SWITCH_BACK_ENTRY_TYPE && entry_type === "SWITCH_BACK") {
+    
+                    return sendResponse(
+                        res, // response object
+                        false, // success
+                        HttpStatusCode.BadRequest, // statusCode
+                        responseObject.RESPONSE_NEGATIVE, // status type
+                        `Already a Switchback is scheduled, cannot schedule Switchback again`, // message
+                        {} // data
+                    );
+    
+                }
+    
+            }
+
         // if any failover or switchback is in schedule or running
        let currentFailoverStatus = await UFMFailoverProcess.findOne( {
         where:  {
@@ -298,7 +335,7 @@ const schedulePlannedFailoverForTenants = async (req, res) => {
             where: {
                 // ufm_profile_id: ufm_profile_id,
                 config_state_id: config_state_id,
-                is_last_record: true // this is creating a problem???
+                is_last_record: true 
             },
             transaction
         })
@@ -387,7 +424,10 @@ const schedulePlannedFailoverForTenants = async (req, res) => {
                 failover_process_id: failoverProcess.failover_process_id,
                 config_id: item.config_id,
                 config_package_id: item.config_package_id,
+                config_package_name: item.config_package_name,
                 config_component_id: item.config_component_id,
+                config_component_name: item.config_component_name,
+                config_component_type: item.config_component_type,
                 config_component_position: item.config_component_position, // changed here
                 config_component_dt_version: item.config_component_dt_version,
                 primary_tenant_runtime_status: "PENDING", // state assigned by us 
@@ -439,42 +479,9 @@ const getFailoverStatusForTenants = async (req,res) => {
     let responseMessage = ``;
     try {
         let data = {};
-        let { configStateId } = req.params;
-         configStateId = Number(configStateId);
+        let { ufmProfileId } = req.params;
+        ufmProfileId = Number(ufmProfileId);
 
-        // if there is no data initially in the table:
-        let countFailoverRecords = await UFMFailoverProcess.count();
-
-        if (countFailoverRecords === 0 || countFailoverRecords === null) {
-            console.log('\nwhen no records in ', countFailoverRecords)
-            data = {
-                processes: [
-                    {
-                        type:"FAILOVER",
-                        enableButtonFlag: true
-                    },
-                    {
-                        type:"SWITCH_BACK",
-                        enableButtonFlag: false
-                    }
-                ],
-                lineItemInfo: [] // in initial condition 
-            }
-            responseMessage = `No Failover/Switchback is in progress`
-            return sendResponse(
-                res, // response object
-                true, // success
-                HttpStatusCode.Ok, // statusCode
-                responseObject.RESPONSE_POSITIVE, // status type
-                responseMessage, // message
-                data
-            );
-
-        }
-
-        if (countFailoverRecords) {
-            console.log('\nFailover process record count: ', countFailoverRecords)
-        }
 
         // supersede everything --> disable both buttons -> if anything is running/scheduled
         let failoverArtifacts = [];
@@ -483,13 +490,13 @@ const getFailoverStatusForTenants = async (req,res) => {
                 [Op.or]: [
                     FAILOVER_ENTRY_TYPE,
                     SWITCH_BACK_ENTRY_TYPE
-                  ]
+                    ]
             },
             is_process_initiated_progress_id: {
                 [Op.or]: [
                     FAILOVER_PROCESS_STATUS.SCHEDULED, // represents failover/switchback 
                     FAILOVER_PROCESS_STATUS.RUNNING     // represents failover/switchback 
-                  ]
+                    ]
             },
             is_last_record: true
         }
@@ -501,12 +508,12 @@ const getFailoverStatusForTenants = async (req,res) => {
         if (failoverSupersedeQuery) {
 
             failoverArtifacts = await UFMFailoverProcessComponent.findAll({
-               where: {
-                   failover_process_id:  failoverSupersedeQuery?.failover_process_id
-               } 
-           });
+                where: {
+                    failover_process_id:  failoverSupersedeQuery?.failover_process_id
+                } 
+            });
     
-           data = {
+            data = {
             processes: [
                 {
                     type:"FAILOVER",
@@ -518,25 +525,79 @@ const getFailoverStatusForTenants = async (req,res) => {
                 }
             ],
             lineItemInfo: failoverArtifacts // showing the current deployment status of artifacts
-         }
-         responseMessage = `A failover/switchback is running/scheduled, cannot enable both buttons`;
-        
-         // at last send the response data
-         return sendResponse(
-             res, // response object
-             true, // success
-             HttpStatusCode.Ok, // statusCode
-             responseObject.RESPONSE_POSITIVE, // status type
-             responseMessage, // message
-             data
-         );
         }
+        responseMessage = `A failover/switchback is running/scheduled, cannot enable both buttons`;
+        
+        // at last send the response data
+        return sendResponse(
+            res, // response object
+            true, // success
+            HttpStatusCode.Ok, // statusCode
+            responseObject.RESPONSE_POSITIVE, // status type
+            responseMessage, // message
+            data
+        );
+        }
+
+            
+       const ufmRecord = await UFMProfile.findOne({
+        where: {
+            ufm_profile_id : ufmProfileId
+        }
+       })
+
+       if (!ufmRecord) {
+        responseMessage = `UFM profile id: ${ufmProfileId} does not exist`;
+        return sendResponse(
+            res, // response object
+            true, // success
+            HttpStatusCode.NotFound, // statusCode
+            responseObject.RECORD_NOT_FOUND, // status type
+            responseMessage, // message
+            {}
+        );
+       }
+       
+
+        // if ufm Profile id is found: 
+        // check for the latest record in the failover process for the ufm profile
+       let latestActivity = await UFMFailoverProcess.findOne({
+        where : {
+            ufm_profile_id : ufmRecord.ufm_profile_id
+        },
+        order: [['process_started_on', 'DESC']]
+       });
+
+       if (!latestActivity) {
+        data = {
+            processes: [
+                {
+                    type:"FAILOVER",
+                    enableButtonFlag: true
+                },
+                {
+                    type:"SWITCH_BACK",
+                    enableButtonFlag: false
+                }
+            ],
+            lineItemInfo: [] // in initial condition 
+        }
+        responseMessage = `The artifacts are in initial state and ready to schedule a failover process.`
+        return sendResponse(
+            res, // response object
+            true, // success
+            HttpStatusCode.Ok, // statusCode
+            responseObject.RESPONSE_POSITIVE, // status type
+            responseMessage, // message
+            data
+        );
+       }
 
         // check condition to disable failover button when failover is completed/failed for a
         // particular config state id. 
         let whereConditionButtonDisable = {
             // entry_type_id: FAILOVER_ENTRY_TYPE,
-            config_state_id: configStateId,
+            config_state_id: latestActivity.config_state_id,
             is_process_initiated_progress_id: {
                 [Op.or]: [
                     FAILOVER_PROCESS_STATUS.COMPLETED, 

@@ -5,7 +5,7 @@ const runtimeArtifactsController  = require('../controllers/runtimeArtifactsCont
 // router.route('/:tenantOneId/:tenantTwoId')
 //     .get( runtimeArtifactsController.getRuntimeArtifactsWithDesigntimeArtifacts )
 
-router.route('/failover-status/:configStateId')
+router.route('/failover-status/:ufmProfileId')
     .get(runtimeArtifactsController.getFailoverStatus )
     
 router.route('/:ufmProfileId')

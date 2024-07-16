@@ -6,10 +6,14 @@ const unzipper = require('unzipper');
 const { Writable } = require('stream');
 const { FAILOVER_ENTRY_TYPE, 
     SWITCH_BACK_ENTRY_TYPE, 
-    FAILOVER_PROCESS_STATUS } = require("../constants/taxonomyValues");
+    FAILOVER_PROCESS_STATUS,
+    SWITCH_BACK_PROCESS_STATUS,
+    IFLOW_UTIL_IMP
+} = require("../constants/taxonomyValues");
 const { getBearerTokenForTenants, getBearerTokenForIFlow } = require("../util/auth");
 const { axiosInstance } = require("../services/cpiClient");
 const UFMFailoverProcessComponent = require("../models/UFM/ufmFailoverProcessComponent");
+const Taxonomy = require("../models/taxonomy");
 
 
 const processFailoverJob = async () => {
@@ -170,30 +174,32 @@ const getCommonInformationForActivity = async (FOSB_query) => {
         url: tenantTwoDbResponse.tenant_util_host_url,
         token: tenantTwoUtilBearerToken
        })
-
+    //    ufm_profile_primary_tenant_id -> is the primary site
+    //  ufm_profile_secondary_tenant_id -> is the secondary site
         
         if (FOSB_query.entry_type_id === FAILOVER_ENTRY_TYPE) {
             commonInputData = {
                 primaryTenantId: ufmProfileResponse.ufm_profile_primary_tenant_id,
                 secondaryTenantId: ufmProfileResponse.ufm_profile_secondary_tenant_id,
                 activity_type: FAILOVER_ENTRY_TYPE,
-                axiosInstancePrimaryTenant: axiosInstanceTenantOne,
+                axiosInstancePrimaryTenant: axiosInstanceTenantOne, // tenant 1 would act as source
                 axiosInstancePrimaryTenantGlobalVariable: axiosInstanceTenantOneGlobalVariable,
-                axiosInstanceSecondaryTenant: axiosInstanceTenantTwo,
+                axiosInstanceSecondaryTenant: axiosInstanceTenantTwo, // tenant 2 would act as target
                 axiosInstanceUtilSecondaryTenant: axiosInstanceUtilTenantTwo,
                 failoverProcessId: FOSB_query.failover_process_id
             }
         } 
     
-        // in switch back, tenantTwo would serve as primary and tenantOne as secondary
+        // in switch back, tenantTwo would serve as tenantOne and tenantOne as tenantTwo (reverse of failover)
+        
         if (FOSB_query.entry_type_id === SWITCH_BACK_ENTRY_TYPE) {
             commonInputData = {
                 primaryTenantId: ufmProfileResponse.ufm_profile_secondary_tenant_id,
                 secondaryTenantId: ufmProfileResponse.ufm_profile_primary_tenant_id,
                 activity_type: SWITCH_BACK_ENTRY_TYPE,
-                axiosInstancePrimaryTenant: axiosInstanceTenantTwo,
+                axiosInstancePrimaryTenant: axiosInstanceTenantTwo, // tenant 2 would act as source
                 axiosInstancePrimaryTenantGlobalVariable: axiosInstanceTenantTwoGlobalVariable,
-                axiosInstanceSecondaryTenant: axiosInstanceTenantOne,
+                axiosInstanceSecondaryTenant: axiosInstanceTenantOne, // tenant 1 would act as target
                 axiosInstanceUtilSecondaryTenant: axiosInstanceUtilTenantOne,
                 failoverProcessId: FOSB_query.failover_process_id
             }
@@ -250,7 +256,8 @@ const performFailoverActivity = async (commonInputData) => {
         console.log('\nFailover completed successfully');
         const updateFailoverProcessTable = await UFMFailoverProcess.update(
             {
-                is_process_initiated_progress_id: FAILOVER_PROCESS_STATUS.COMPLETED
+                is_process_initiated_progress_id: FAILOVER_PROCESS_STATUS.COMPLETED,
+                process_completed_on: Math.floor(Date.now() / 1000)
             },
             {
                 where: {
@@ -262,7 +269,8 @@ const performFailoverActivity = async (commonInputData) => {
     } else {
         const updateFailoverProcessTable = await UFMFailoverProcess.update(
             {
-                is_process_initiated_progress_id: FAILOVER_PROCESS_STATUS.FAILED
+                is_process_initiated_progress_id: FAILOVER_PROCESS_STATUS.FAILED,
+                process_completed_on: Math.floor(Date.now() / 1000)
             },
             {
                 where: {
@@ -278,23 +286,23 @@ const performFailoverActivity = async (commonInputData) => {
 // this function collects all the required info/resources at one places -> to make the code modular
 
 const performSwitchbackActivity = async (commonInputData) => {
-    // const isUndeployed = await undeployArtifacts(commonInputData) ;
+    const isUndeployed = await undeployArtifacts(commonInputData) ;
 
-    // if (isUndeployed) {
-    //     console.log('\nSWITCH_BACK: Undeployed artifacts from secondary site');
-    // }
+    if (isUndeployed) {
+        console.log('\nSWITCH_BACK: Undeployed artifacts from secondary site');
+    }
 
-    // const isCopiedGlobalVariables = await copyGlobalVariables(commonInputData);
+    const isCopiedGlobalVariables = await copyGlobalVariables(commonInputData);
 
-    // if (isCopiedGlobalVariables) {
-    //     console.log('\nSWITCH_BACK: Global variables copied from secondary to primary site')
-    // }
+    if (isCopiedGlobalVariables) {
+        console.log('\nSWITCH_BACK: Global variables copied from secondary to primary site')
+    }
 
-    // const isNumberRangesCopied = await copyNumberRanges(commonInputData);
+    const isNumberRangesCopied = await copyNumberRanges(commonInputData);
 
-    // if (isNumberRangesCopied) {
-    //     console.log('\nSWITCH_BACK: Number Ranges copied');
-    // }
+    if (isNumberRangesCopied) {
+        console.log('\nSWITCH_BACK: Number Ranges copied');
+    }
 
     let isDeployed = await deployArtifacts(commonInputData);
 
@@ -302,96 +310,144 @@ const performSwitchbackActivity = async (commonInputData) => {
         console.log('\ndeployed artifacts on secondary tenant');
     }
 
-    // const isHeartBeatActivityPerformed = await heartBeatServiceProcedure(commonInputData);
+    const isHeartBeatActivityPerformed = await heartBeatServiceProcedure(commonInputData);
 
-    // if (isHeartBeatActivityPerformed) {
-    //     console.log('\nHeart beat activity performed');
-    // }
+    if (isHeartBeatActivityPerformed) {
+        console.log('\nHeart beat activity performed');
+    }
+
+    if (   isHeartBeatActivityPerformed 
+        && isUndeployed
+        && isCopiedGlobalVariables
+        && isNumberRangesCopied
+        && isDeployed
+    ) {
+        console.log('\nSwitchback completed successfully');
+        const updateFailoverProcessTable = await UFMFailoverProcess.update(
+            {
+                is_process_initiated_progress_id: SWITCH_BACK_PROCESS_STATUS.COMPLETED,
+                process_completed_on: Math.floor(Date.now() / 1000)
+            },
+            {
+                where: {
+                    failover_process_id: commonInputData.failoverProcessId
+                },
+                // transaction
+            }
+        );
+    } else {
+        console.log('\nSwitchback activity failed');
+        const updateFailoverProcessTable = await UFMFailoverProcess.update(
+            {
+                is_process_initiated_progress_id: SWITCH_BACK_PROCESS_STATUS.FAILED,
+                process_completed_on: Math.floor(Date.now() / 1000)
+            },
+            {
+                where: {
+                    failover_process_id: commonInputData.failoverProcessId
+                },
+                // transaction
+            }
+        );
+    }
 
 }
 
 const heartBeatServiceProcedure = async (commonInputData) => {
     let isHeartBeatActivityPerformed = true;
+    const utilEntry = await Taxonomy.findOne({
+        where: {
+            taxonomy_id: IFLOW_UTIL_IMP.PING_HEALTHPROBE
+        }
+    })
 
+    if (!utilEntry) {
+        console.log('\nPing healthprobe is not present in taxonomy')
+        isHeartBeatActivityPerformed = false; 
+        return isHeartBeatActivityPerformed;
+    }
+
+    const createDelay = ms => new Promise(resolve => setTimeout(resolve, ms));
     let activity_type = '';
-    console.log('\n... I am doing heartbeat ...');
     try {
         if (commonInputData.activity_type === FAILOVER_ENTRY_TYPE) {
             activity_type = 'Failover';
-            try {
-                //check if the heartbeat is present in the secondary 
-                const healthProbeUrl = `/api/v1/IntegrationRuntimeArtifacts('ping_healthprobe')`;
-                let responseHealthProbe = await commonInputData.axiosInstanceSecondaryTenant.get(healthProbeUrl);
-    
-                if (responseHealthProbe) {
-                    isHeartBeatActivityPerformed = true;
-                    console.log('\nFailover: Heart beat is there in secondary tenant\n');
-                } 
-            } catch(error) {
-                if (error.response && error.response.status === 404) {
-                    errorMessage = `Artifact id: ping_healthprobe is already undeployed (404 error) or not found.`;
-                    console.error(errorMessage);
-                } else {
-                    console.error(`Error in getting ping_healthprobe.`);
-              
-                }
-                // if error, the health probe to deployed state in secondary
-                const deployHealthProbeUrl = `/api/v1/DeployIntegrationDesigntimeArtifact?Id='ping_healthprobe'&Version='1.0.10'`; // remove hardcoding
-                let deployHealthProbe = await commonInputData.axiosInstanceSecondaryTenant.post(deployHealthProbeUrl);
+            console.log('Heartbeat activity for Failover');
+            let flag = true;
+           
+            
+               while (flag) {
+                try {
+                    // try to deploy for secondary site
+                    const deployHealthProbeUrl = `/api/v1/DeployIntegrationDesigntimeArtifact?Id='${utilEntry.taxonomy_name}'&Version='${utilEntry.taxonomy_value}'`; // remove hardcoding
+                    let deployHealthProbe = await commonInputData.axiosInstanceSecondaryTenant.post(deployHealthProbeUrl);
+                    // Introduce a 2000ms delay
+                    await createDelay(2000);
 
-                if (deployHealthProbe) {
-                    console.log('\nFailover: health probe deployed');
-                    isHeartBeatActivityPerformed = true;
+                    const healthProbeUrl = `/api/v1/IntegrationRuntimeArtifacts('${utilEntry.taxonomy_name}')`;
+                    let responseHealthProbe = await commonInputData.axiosInstanceSecondaryTenant.get(healthProbeUrl);
+
+                    if (responseHealthProbe.status === 200 || responseHealthProbe.status === 202) {
+                        console.log('\nget status for ping_healthprobe done')
+                        flag = false;
+                    }
+
+                } catch(error) {
+                    if (error.response && error.response.status === 404) {
+                        flag = true;
                 }
+
+            }
+            // flag = false;
+        }
+            const undeployHealthProbeUrl = `/api/v1/IntegrationRuntimeArtifacts('ping_healthprobe')`
+            let undeployHealthProbe = await commonInputData.axiosInstancePrimaryTenant.delete(undeployHealthProbeUrl);
+            await createDelay(1000);
+
+            if (undeployHealthProbe) {
+                console.log('\nUndeployed artifact: ping_healthprobe from primary tenant');
+                return true;
             }
 
-            // undeploy from primary tenant
-            try {
-                const undeployHealthProbeUrl = `/api/v1/IntegrationRuntimeArtifacts('ping_healthprobe')`
-                let undeployHealthProbe = await commonInputData.axiosInstancePrimaryTenant.delete(undeployHealthProbeUrl);
-    
-                if (undeployHealthProbe) {
-                    console.log('\nUndeployed artifact: ping_healthprobe from primary tenant');
-                }
-
-                isHeartBeatActivityPerformed = true;
-            } catch(error) {
-                console.log('\nError in undeploying artifact: ping_healthprobe from primary tenant');
-            }
-       
-            return isHeartBeatActivityPerformed;
+            return true;
         }
     
         if (commonInputData.activity_type === SWITCH_BACK_ENTRY_TYPE) {
             activity_type = 'Switchback';
-            /*
-            try {
-                const healthProbleUrl = `/api/v1/IntegrationRuntimeArtifacts('ping_healthprobe')`;
-                let responseHealthProbe = await commonInputData.axiosInstanceSecondaryTenant.get(healthProbleUrl);
-    
-                if (responseHealthProbe) {
-                    isHeartBeatActivityPerformed = true;
-                    console.log('\nFailover: Heart beat is there\n');
-                } 
-            } catch(error) {
-                // if error set the health probe to deployed state in secondary
-                const deployHealthProbeUrl = `/api/v1/DeployIntegrationDesigntimeArtifact?Id='ping_healthprobe'&Version='1.0.10'`; // remove hardcoding
-                let deployHealthProbe = await commonInputData.axiosInstanceSecondaryTenant.post(deployHealthProbeUrl);
+            console.log('\nHeartbeat activity for switchback');
+          
+                // deploy heartbeat back to the primary site
+                const deployHealthProbeUrl = `/api/v1/DeployIntegrationDesigntimeArtifact?Id='ping_healthprobe'&Version='1.0.10'`; 
+                let deployHealthProbe = await commonInputData.axiosInstanceSecondaryTenant.post(deployHealthProbeUrl); // deploy to tenant 1
+
+                await createDelay(2000);
 
                 if (deployHealthProbe) {
-                    console.log('\nFailover: health probe deployed');
+                    console.log('\nDeployed heartbeat service to primary site')
                 }
-            }
 
-            // undeploy from primary tenant
-            const undeployHealthProbeUrl = `/api/v1/IntegrationRuntimeArtifacts('ping_healthprobe')`
-            let undeployHealthProbe = await commonInputData.axiosInstancePrimaryTenant.delete(undeployHealthProbeUrl);
+                try {
+                    // undeploy heartbeat from the secondary site
+                    const undeployHealthProbeUrl = `/api/v1/IntegrationRuntimeArtifacts('ping_healthprobe')`
+                    let undeployHealthProbe = await commonInputData.axiosInstancePrimaryTenant.delete(undeployHealthProbeUrl); // undeploy from tenant 2
 
-            if (undeployHealthProbe) {
-                console.log('\nUndeployed from primary\n');
-            }
-            */
-    
+                    await createDelay(1000);
+
+                    if (undeployHealthProbe) {
+                        console.log('\nUndeployed heartbeat service from secondary');
+                    }
+                } catch(error) {
+                    if (error.response && error.response.status === 404) {
+                        errorMessage = `Artifact id: ping_healthprobe is already undeployed (404 error) or not found.`;
+                        console.error(errorMessage);
+                        isHeartBeatActivityPerformed = true;
+                    } else {
+                        console.error(`Error in getting ping_healthprobe.`);
+                        isHeartBeatActivityPerformed = true;
+                    }
+                }
+
+                isHeartBeatActivityPerformed = true;
         }
     } catch(error) {
         isHeartBeatActivityPerformed = false;
@@ -475,18 +531,10 @@ const copyNumberRanges = async (commonInputData) => {
             return true;
         } catch(error) {
             console.log('\nError during copying Number Ranges', error);
+            return false;
         }
         
-    // } 
 
-    // if (commonInputData.activity_type === SWITCH_BACK_ENTRY_TYPE) {
-
-
-    //     return true;
-    // }
-
-
-    return true;
 }
 
 const copyGlobalVariables = async (commonInputData) => {
@@ -583,7 +631,6 @@ if (commonInputData.activity_type === FAILOVER_ENTRY_TYPE) {
             failover_process_id: commonInputData.failoverProcessId
         },
         order: [['failover_process_component_id', 'DESC']],
-        // limit: 30
     })
 
     if (!failoverProcessComponent) {
