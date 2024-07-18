@@ -297,50 +297,65 @@ const updateTenantDetails = async (req, res) => {
           let { 
             tenant_name,
             tenant_description,
-            // tenant_region_id,
-            // tenant_host_url,
-            // tenant_host_token_api,
-            // tenant_iflow_host_url,
-            // tenant_host_username,
+            tenant_region_id,
+            tenant_host_url,
+            tenant_host_token_api,
+            tenant_iflow_host_url,
+            tenant_host_username,
             tenant_host_password,
-            // tenant_iv_salt,
-            // tenant_host_test_status_id,
-            // tenant_host_test_status_on,
-            // tenant_util_host_url,
-            // tenant_util_token_url,
-            // tenant_util_client_id,
+            tenant_iv_salt,
+            tenant_host_test_status_id,
+            tenant_host_test_status_on,
+            tenant_util_host_url,
+            tenant_util_token_url,
+            tenant_util_client_id,
             tenant_util_client_secret,
-            // tenant_util_iv_salt,
-            // tenant_environment_id,
-            // tenant_state_id,
-            // created_by,
+            tenant_util_iv_salt,
+            tenant_environment_id,
+            tenant_state_id,
+            created_by,
             modified_by
           } = req.body;
 
+          let encryptedTenantHostPassword;
+          let encryptedTenantUtilClientSecret;
+
+          if (!tenant_host_password || tenant_host_password === null) {
+            encryptedTenantHostPassword = tenant.tenant_host_password;
+            console.log('\nHost password is not provided')
+          } else {
+            encryptedTenantHostPassword = encryptData (tenant_host_password, getEncryptionIV(tenant_iv_salt));
+          }
+
+          if (!tenant_util_client_secret || tenant_host_password === null) {
+            encryptedTenantUtilClientSecret = tenant.tenant_util_client_secret;
+            console.log('\nutil client secret is not provided')
+          } else {
+            encryptedTenantUtilClientSecret = encryptData (tenant_util_client_secret, getEncryptionIV(tenant_util_iv_salt));
+          }
+
          // not using tenant_iv_salt for now, instead using it from our .env
          // later on, use tenant_iv_salt
-         let encryptedTenantHostPassword = encryptData (tenant_host_password, getEncryptionIV(tenant_iv_salt));
-         let encryptedTenantUtilClientSecret = encryptData (tenant_util_client_secret, getEncryptionIV(tenant_util_iv_salt))
           await tenant.update({ 
             tenant_name,
             tenant_description,
-            // tenant_region_id,
-            // tenant_host_url,
-            // tenant_host_token_api,
-            // tenant_iflow_host_url,
-            // tenant_host_username,
+            tenant_region_id,
+            tenant_host_url,
+            tenant_host_token_api,
+            tenant_iflow_host_url,
+            tenant_host_username,
             tenant_host_password: encryptedTenantHostPassword,
             tenant_iv_salt,
-            // tenant_host_test_status_id,
-            // tenant_host_test_status_on,
-            // tenant_util_host_url,
-            // tenant_util_token_url,
-            // tenant_util_client_id,
+            tenant_host_test_status_id,
+            tenant_host_test_status_on,
+            tenant_util_host_url,
+            tenant_util_token_url,
+            tenant_util_client_id,
             tenant_util_client_secret: encryptedTenantUtilClientSecret,
             tenant_util_iv_salt,
-            // tenant_environment_id,
-            // tenant_state_id,
-            // created_by,
+            tenant_environment_id,
+            tenant_state_id,
+            created_by,
             modified_by,
            });
           res.json(tenant);
