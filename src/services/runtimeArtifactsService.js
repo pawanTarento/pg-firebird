@@ -168,6 +168,7 @@ const postFailoverConfig = async (req, res) => {
                     config_package_supported_platform: package.SupportedPlatform,
                     config_component_id: artifact.Id,
                     config_component_name: artifact.Name,
+                    config_component_type: artifact.Type,
                     config_component_dt_version: artifact.Version,
                     config_component_rt_version: (artifact.Runtime ? artifact.Runtime.Version : null),
                     config_component_description: artifact.Description,
@@ -181,7 +182,7 @@ const postFailoverConfig = async (req, res) => {
 
         if (configTableData) {
             await transaction.commit();
-            return res.status(HttpStatusCode.Ok).json({ message: 'success', data: configTableData });
+            return res.status(HttpStatusCode.Ok).json({ message: 'success' });
         } else {
             await transaction.rollback();
             return res.status(HttpStatusCode.InternalServerError).json({ 'message': 'Internal Server Error' });
@@ -189,16 +190,8 @@ const postFailoverConfig = async (req, res) => {
 
     } catch (error) {
         await transaction.rollback();
-        console.log('Error in post failover config', error);
-        return sendResponse(
-            res, // response object
-            false, // success
-            HttpStatusCode.InternalServerError, // statusCode
-            responseObject.INTERNAL_SERVER_ERROR, // status type
-            `Internal Server Error in posting failover config records: ${error.message}`, // message
-            {}
-        );
-        // return res.status(HttpStatusCode.InternalServerError).json({ 'message': 'Internal Server Error' });
+        console.log(error);
+        return res.status(HttpStatusCode.InternalServerError).json({ 'message': 'Internal Server Error' });
     }
 
 }
@@ -211,7 +204,8 @@ const schedulePlannedFailoverForTenants = async (req, res) => {
             ufm_profile_id, 
             config_state_id, 
             user_id,
-            entry_type
+            entry_type,
+            is_planned_failover
         } = req.body;
 
         if (!entry_type) {
@@ -240,6 +234,17 @@ const schedulePlannedFailoverForTenants = async (req, res) => {
                 );
             }
  
+        }
+
+        if (!req.body.hasOwnProperty("is_planned_failover")) {
+            return sendResponse(
+                res, // response object
+                false, // success
+                HttpStatusCode.BadRequest, // statusCode
+                responseObject.WRONG_PARAMETER, // status type
+                `Need failover type: planned or unplanned`, // message
+                {}
+            );
         }
 
         // this query is a failsafe. In case the Failover/switchback buttons dont get enabled/disabled due
@@ -397,7 +402,8 @@ const schedulePlannedFailoverForTenants = async (req, res) => {
                         SWITCH_BACK_PROCESS_STATUS.FAILED
                       ]
                 },
-                is_last_record: true 
+                is_last_record: true,
+                 // potential place for is_planned_failover: is_planned_failover,
             }
             , transaction 
         });
@@ -408,6 +414,7 @@ const schedulePlannedFailoverForTenants = async (req, res) => {
                 config_state_id: configStateDataResponse.config_state_id,
                 ufm_profile_id: configStateDataResponse.ufm_profile_id,
                 is_last_record: true, // 
+                is_planned_failover: is_planned_failover,
                 entry_type_id: processEntryType , 
                 is_process_initiated_progress_id: FAILOVER_PROCESS_STATUS.SCHEDULED,
                 process_started_on: Math.floor(Date.now() / 1000), // save as epoch time
@@ -514,6 +521,7 @@ const getFailoverStatusForTenants = async (req,res) => {
             });
     
             data = {
+            isPlannedFailover: failoverSupersedeQuery.is_planned_failover,
             processes: [
                 {
                     type:"FAILOVER",
@@ -524,7 +532,7 @@ const getFailoverStatusForTenants = async (req,res) => {
                     enableButtonFlag: false
                 }
             ],
-            lineItemInfo: failoverArtifacts // showing the current deployment status of artifacts
+            lineItemInfo: transformData(failoverArtifacts), // showing the current deployment status of artifacts
         }
         responseMessage = `A failover/switchback is running/scheduled, cannot enable both buttons`;
         
@@ -623,6 +631,7 @@ const getFailoverStatusForTenants = async (req,res) => {
                 if(  buttonQueryResponse.is_process_initiated_progress_id === FAILOVER_PROCESS_STATUS.COMPLETED 
                  ||  buttonQueryResponse.is_process_initiated_progress_id === FAILOVER_PROCESS_STATUS.FAILED ) {
                      data = {
+                        isPlannedFailover: buttonQueryResponse.is_planned_failover,
                         processes: [
                             {
                                 type:"FAILOVER",
@@ -633,7 +642,7 @@ const getFailoverStatusForTenants = async (req,res) => {
                                 enableButtonFlag: true
                             }
                         ],
-                        lineItemInfo: failoverArtifacts
+                        lineItemInfo: transformData(failoverArtifacts),
                      }
 
                      responseMessage =`Failover is done. Can schedule a Switchback`;
@@ -645,6 +654,7 @@ const getFailoverStatusForTenants = async (req,res) => {
               if(  buttonQueryResponse.is_process_initiated_progress_id === SWITCH_BACK_PROCESS_STATUS.COMPLETED 
                ||  buttonQueryResponse.is_process_initiated_progress_id === SWITCH_BACK_PROCESS_STATUS.FAILED ) {
                 data = {
+                    isPlannedFailover: buttonQueryResponse.is_planned_failover,
                     processes: [
                         {
                             type:"FAILOVER",
@@ -655,7 +665,7 @@ const getFailoverStatusForTenants = async (req,res) => {
                             enableButtonFlag: false
                         }
                     ],
-                    lineItemInfo: failoverArtifacts
+                    lineItemInfo: transformData(failoverArtifacts)
                 }
 
                 responseMessage =`Switchback is done. Can schedule a Failover`;
@@ -686,6 +696,50 @@ const getFailoverStatusForTenants = async (req,res) => {
             {}
         );
     }
+
+}
+
+function transformData (data) {
+    const result = {
+        packages: []
+      };
+      
+      data.forEach(item => {
+        const packageIndex = result.packages.findIndex(pkg => pkg.config_package_id === item.config_package_id);
+        
+        const artifact = {
+          config_component_position: item.config_component_position,
+          config_component_id: item.config_component_id,
+          config_component_name: item.config_component_name,
+          config_component_type: item.config_component_type,
+          config_component_dt_version: item.config_component_dt_version,
+          primary_tenant_runtime_status: item.primary_tenant_runtime_status,
+          primary_tenant_runtime_error: item.primary_tenant_runtime_error,
+          primary_tenant_runtime_started_on: item.primary_tenant_runtime_started_on,
+          primary_tenant_runtime_completed_on: item.primary_tenant_runtime_completed_on,
+          primary_tenant_runtime_status_last_updated_on: item.primary_tenant_runtime_status_last_updated_on,
+          secondary_tenant_runtime_status: item.secondary_tenant_runtime_status,
+          secondary_tenant_runtime_error: item.secondary_tenant_runtime_error,
+          secondary_tenant_runtime_started_on: item.secondary_tenant_runtime_started_on,
+          secondary_tenant_runtime_completed_on: item.secondary_tenant_runtime_completed_on,
+          secondary_tenant_runtime_status_last_updated_on: item.secondary_tenant_runtime_status_last_updated_on
+        };
+        
+        if (packageIndex === -1) {
+          result.packages.push({
+            config_package_id: item.config_package_id,
+            config_package_name: item.config_package_name,
+            created_on: item.created_on,
+            created_by: item.created_by,
+            artifacts: [artifact]
+          });
+        } else {
+          result.packages[packageIndex].artifacts.push(artifact);
+        }
+      });
+
+      return result;
+
 
 }
 

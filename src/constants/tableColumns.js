@@ -188,6 +188,7 @@ const UFMFailoverProcessTableColumns = [
     "config_state_id",
     "ufm_profile_id",
     "is_last_record",
+    "is_planned_failover",
     "entry_type_id",
     "is_process_initiated_progress_id",
     "process_started_on",

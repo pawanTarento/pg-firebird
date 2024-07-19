@@ -68,7 +68,10 @@ const processFailoverJob = async () => {
 
         if (FOSB_query) {
               // update the scheduled failover/switchback to running
-            console.log('\n---> ', FAILOVER_PROCESS_STATUS.RUNNING, FOSB_query.failover_process_id )
+            console.log('\n---> ', FAILOVER_PROCESS_STATUS.RUNNING, 
+                FOSB_query.failover_process_id,  
+                FOSB_query.is_planned_failover
+            )
 
             const updateFailoverProcessTable = await UFMFailoverProcess.update(
                 {
@@ -186,7 +189,8 @@ const getCommonInformationForActivity = async (FOSB_query) => {
                 axiosInstancePrimaryTenantGlobalVariable: axiosInstanceTenantOneGlobalVariable,
                 axiosInstanceSecondaryTenant: axiosInstanceTenantTwo, // tenant 2 would act as target
                 axiosInstanceUtilSecondaryTenant: axiosInstanceUtilTenantTwo,
-                failoverProcessId: FOSB_query.failover_process_id
+                failoverProcessId: FOSB_query.failover_process_id,
+                isPlannedFailover: FOSB_query.is_planned_failover
             }
         } 
     
@@ -201,7 +205,8 @@ const getCommonInformationForActivity = async (FOSB_query) => {
                 axiosInstancePrimaryTenantGlobalVariable: axiosInstanceTenantTwoGlobalVariable,
                 axiosInstanceSecondaryTenant: axiosInstanceTenantOne, // tenant 1 would act as target
                 axiosInstanceUtilSecondaryTenant: axiosInstanceUtilTenantOne,
-                failoverProcessId: FOSB_query.failover_process_id
+                failoverProcessId: FOSB_query.failover_process_id,
+                isPlannedFailover: FOSB_query.is_planned_failover
             }
         }
     
@@ -222,12 +227,17 @@ const performFailoverActivity = async (commonInputData) => {
         console.log('\nHeart beat activity performed');
     }
 
+    let isUndeployed;
+
+    if (commonInputData.isPlannedFailover) { // if it is false, then we are doing unplanned failover
+        console.log('\nFor Planned failover activity: type-> Failover');
     // undeploy artifact from primary tenant
-    const isUndeployed = await undeployArtifacts(commonInputData);
+    isUndeployed = await undeployArtifacts(commonInputData);
 
     if (isUndeployed) {
         console.log('\nUndeployed runtime artifacts from primary site');
     }
+  }
 
     const isCopiedGlobalVariables = await copyGlobalVariables(commonInputData);
 
@@ -247,12 +257,14 @@ const performFailoverActivity = async (commonInputData) => {
         console.log('\ndeployed artifacts on secondary tenant');
     }
 
-    if (   isHeartBeatActivityPerformed 
-        && isUndeployed
-        && isCopiedGlobalVariables
-        && isNumberRangesCopied
-        && isDeployed
-    ) {
+      //success conditions
+      const successConditions = isHeartBeatActivityPerformed 
+      && isCopiedGlobalVariables 
+      && isNumberRangesCopied 
+      && isDeployed 
+      && (commonInputData.isPlannedFailover ? isUndeployed : true); // true value from this line -> for unplanned 
+    
+      if (successConditions) {
         console.log('\nFailover completed successfully');
         const updateFailoverProcessTable = await UFMFailoverProcess.update(
             {
@@ -286,11 +298,17 @@ const performFailoverActivity = async (commonInputData) => {
 // this function collects all the required info/resources at one places -> to make the code modular
 
 const performSwitchbackActivity = async (commonInputData) => {
-    const isUndeployed = await undeployArtifacts(commonInputData) ;
+
+    let isUndeployed;
+    if (commonInputData.isPlannedFailover) { // if it is false, then we are doing unplanned failover
+        console.log('\nFor Planned failover activity: type-> Switchback');
+
+    isUndeployed = await undeployArtifacts(commonInputData) ;
 
     if (isUndeployed) {
         console.log('\nSWITCH_BACK: Undeployed artifacts from secondary site');
     }
+  }
 
     const isCopiedGlobalVariables = await copyGlobalVariables(commonInputData);
 
@@ -316,12 +334,14 @@ const performSwitchbackActivity = async (commonInputData) => {
         console.log('\nHeart beat activity performed');
     }
 
-    if (   isHeartBeatActivityPerformed 
-        && isUndeployed
-        && isCopiedGlobalVariables
-        && isNumberRangesCopied
-        && isDeployed
-    ) {
+       //success conditions
+       const successConditions = isHeartBeatActivityPerformed 
+       && isCopiedGlobalVariables 
+       && isNumberRangesCopied 
+       && isDeployed 
+       && (commonInputData.isPlannedFailover ? isUndeployed : true); // true value from this line -> for unplanned 
+    
+       if (successConditions) {
         console.log('\nSwitchback completed successfully');
         const updateFailoverProcessTable = await UFMFailoverProcess.update(
             {
@@ -996,6 +1016,11 @@ const deployArtifacts = async (commonInputData) => {
                 if (error.response && error.response.status === 404) {
                     errorMessage = `Artifact id: ${failoverProcessComponent[i].config_component_id} is not found.`;
                     console.error(errorMessage);
+                } else if (error.response && error.response.status === 500) {
+
+                    errorMessage = error.response?.data?.error?.message?.value;
+                    console.log(`\nDeployment function: error 500, artifact id: ${failoverProcessComponent[i].config_component_id}`, errorMessage);
+
                 } else {
                     console.error(`Error deploying artifact with id ${failoverProcessComponent[i].config_component_id}:`);
         

@@ -26,7 +26,7 @@ const sendResponse = (
         if ( statusCode === 204 && type === "RecordDelete") {
             return res.status(204).json({message: 'Record deleted successfully'})
         }
-        console.log('Response Object: ', responseObject)
+        // console.log('Response Object: ', responseObject)w
 
         return res.status(statusCode).json(responseObject);
 

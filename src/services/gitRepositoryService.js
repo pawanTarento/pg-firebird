@@ -221,8 +221,8 @@ const updateGitRecord = async (req, res) => {
             `No git record for id: ${gr_id}`, // message
             {}
         );
-          // res.status(404).json({ error: 'Git Record not found...' });
-        } else {
+
+      } else {
           let {        
             gr_name,
             gr_owner_name,
@@ -239,9 +239,13 @@ const updateGitRecord = async (req, res) => {
             modified_by 
           } = req.body;
 
-          // not using gr_client_secret for now, instead using it from our .env
-         // later on, use gr_client_secret
-         let encryptedGrClientSecret = encryptData (gr_client_secret, getEncryptionIV(gr_iv_salt));
+          let encryptedGrClientSecret;
+          if (!gr_client_secret || gr_client_secret === null) {
+            encryptedGrClientSecret = gitRecord.gr_client_secret;
+          } else {
+            encryptedGrClientSecret = encryptData (gr_client_secret, getEncryptionIV(gr_iv_salt));
+          }
+         
           await gitRecord.update({ 
             gr_name,
             gr_owner_name,
@@ -269,8 +273,8 @@ const updateGitRecord = async (req, res) => {
           `Internal Server Error: in updating a git record.`, // message
           {}
       );
-        // res.status(500).json({ error: 'Internal Server Error' });
-      }
+
+    }
 
 }
 

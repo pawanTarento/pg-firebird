@@ -23,6 +23,10 @@ UFMFailoverProcess.init({
         type: DataTypes.BOOLEAN,
         allowNull: true
     },
+    is_planned_failover: {
+        type: DataTypes.BOOLEAN,
+        allowNull: true
+    },
     entry_type_id:{
         type: DataTypes.INTEGER,
         allowNull: true
