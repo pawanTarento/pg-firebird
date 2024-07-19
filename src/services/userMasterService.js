@@ -195,8 +195,13 @@ const addUserRecord = async ( req, res) => {
             external_id: external_id
           }
           });
-
-          return res.status(200).json(userResponse)
+          
+          let user = await UserModel.findOne({
+            where: {
+              external_id: external_id
+            }
+          })
+          return res.status(200).json(user)
         }
 
         const userRecord = await UserModel.create({ 
