@@ -22,7 +22,8 @@ const getAllUserRecords = async (req, res) => {
               "taxonomy_type"
             ]
           }
-        ]
+        ],
+        order: [['last_logged_on', 'DESC']]
     })
 
     if (!response) {
