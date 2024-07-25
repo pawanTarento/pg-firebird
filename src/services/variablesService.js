@@ -33,28 +33,102 @@ const getAllVariablesInfo = async (ufmProfileId,componentTypeId, isCalledFromApi
             token: tenantOneBearerToken
         });
     
+        const axiosInstanceForStreamTenantOne = axiosInstance({
+            url: tenantOneDbResponse.tenant_host_url,
+            responseType: 'stream',
+            token: tenantOneBearerToken
+        });
+
         const axiosInstanceTenantTwo = axiosInstance({
             url: tenantTwoDbResponse.tenant_host_url,
             token: tenantTwoBearerToken
         });
+
+        const axiosInstanceForStreamTenantTwo = axiosInstance({
+            url: tenantTwoDbResponse.tenant_host_url,
+            responseType: 'stream',
+            token: tenantTwoBearerToken
+        })
     
         let [variablesTenantOneResponse, variablesTenantTwoResponse ] = await Promise.all([
             await axiosInstanceTenantOne.get("/api/v1/Variables"),
             await axiosInstanceTenantTwo.get("/api/v1/Variables")
-        ])
+        ]);
+
+        async function extractVariableValues(variableObj, axiosInstance) {
+            try {
+                console.log('\nVariable Obj', variableObj)
+                const url = `/api/v1/Variables(VariableName='${variableObj.VariableName}',IntegrationFlow='${variableObj.IntegrationFlow}')/$value`;
+            
+                const response = await axiosInstance.get(url);
+                if (!response.data) {
+                  throw new Error('No data received for variable');
+                }
+            
+      // This portion sets up a writable stream to capture the content of the file inside the zip archive.
+                let fileContent = '';
+                const writableStream = new Writable({
+                  write(chunk, encoding, callback) {
+                    fileContent += chunk.toString();
+                    callback();
+                  }
+                });
+      
+       //This portion sets up a writable stream to capture the content of the file inside the zip archive.     
+                await new Promise((resolve, reject) => {
+                  response.data
+                    .pipe(unzipper.ParseOne('headers.prop'))
+                    .pipe(writableStream)
+                    .on('finish', resolve)
+                    .on('error', reject);
+                });
+                
+      //This portion parses the accumulated content of the extracted file (fileContent) into a key-value object.
+                const variables = fileContent.split('\n').reduce((acc, line) => {
+                  const [key, value] = line.split('=');
+                  if (key && value) acc[key.trim()] = value.trim();
+                  return acc;
+                }, {});
+            
+                // if variable value is undefined, assign it an empty string
+                const variableValue = variables[variableObj.VariableName] || '';
+                return {...variableObj, variableValue };
+              } catch (error) {
+                console.error('Error extracting variable value:', 
+                    variableObj.VariableName, 
+                    error.message
+                );
+                return null;
+              }
+
+        } 
+
+        let tenantOneVariables = variablesTenantOneResponse.data.d.results;
+        let tenantTwoVariables = variablesTenantTwoResponse.data.d.results;
+
+        tenantOneVariables = tenantOneVariables.filter( item => item.Visibility === 'Global');
+        tenantTwoVariables = tenantTwoVariables.filter( item => item.Visibility === 'Global');
+
+        const promisesT1 = tenantOneVariables.map(variableObj => extractVariableValues(variableObj, axiosInstanceForStreamTenantOne));
+        const promisesT2 = tenantTwoVariables.map(variableObj => extractVariableValues(variableObj, axiosInstanceForStreamTenantTwo));
+        
+        let [tenantOneVariableValues, tenantTwoVariableValues] = await Promise.all([
+            Promise.all(promisesT1), 
+            Promise.all(promisesT2)
+        ]);
 
        let mainResponse ;
        if (isCalledFromApi) {
 
         mainResponse = [
-            { tenantOneVariables: variablesTenantOneResponse.data.d.results },
-            { tenantTwoVariables: variablesTenantTwoResponse.data.d.results }
+            { tenantOneVariables: tenantOneVariableValues },
+            { tenantTwoVariables: tenantTwoVariableValues }
         ]
         return mainResponse;
        } else {
             mainResponse = [
-                { tenantOneVariables: variablesTenantOneResponse.data.d.results },
-                { tenantTwoVariables: variablesTenantTwoResponse.data.d.results }
+                { tenantOneVariables: tenantOneVariableValues },
+                { tenantTwoVariables: tenantTwoVariableValues }
             ]
         return mainResponse
        }
