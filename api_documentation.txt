@@ -1,0 +1,270 @@
+The backend APIs could be divided into following categories
+    A) Master Config APIs
+        A.1) User Master 
+        A.2) Tenant Master
+        A.3) Git Master
+        A.4) UFM Profile
+
+    B) Test Connection
+        B.1) Tenant Check Connection
+        B.2) Git Check Connection
+    
+    C) Taxonomy
+        C.1) Type
+
+    D) User Credentials
+        D.1) Get All User Credentials
+        D.2) Copy all User Credentials
+    
+    E) Global Variables
+        E.1) Get All Global Variables
+        E.2) Copy All Global Variables
+    
+    F) OAuth2 Client Credentials
+        F.1)  Get All Outh2 Client Credentials List
+        F.2)  Copy All OAuth2 Client Credentials
+
+    G) Keystore and Certificates
+        G.1) Get All Keystore For Tenants
+        G.2) Copy Certificates 
+    
+    H) Number Ranges
+        H.1) Get All Number Ranges 
+        H.2) Copy Number Ranges
+
+    I) Failover
+        I.1) Schedule a planned/unplanned Failover (or Switchback)
+        I.2) Get status of Planned/Unplanned Failover (or Switchback)
+        
+    J) Cronjob for Failover/Switchback [ logical flow description only]
+        
+    
+
+
+
+A.1) User Master
+    I) Create User
+        -> Description: Creates a user record. Once a user is logged in for the first time, a record is created in User Master table (user). If the user record already exists, it is only updated in the user master table (user), for instance the last logged on time is updated upon a call to this API from Front End (FE).
+        -> SAP APIs Invoked: None
+        -> Endpoint: /firebird/userMaster
+        Method: POST
+        Payload: { 
+            "email_id": "dbc@example.com",
+            "first_name": "dbc",
+            "last_name": "bravo",
+            "display_name": "dbc bravo",
+            "external_id": "EX2344",
+            "additional_param1": null,
+            "created_by": 1,
+            "modified_by": 2,
+            "is_active": true,
+            "is_admin": true,
+            "role": "Admin",
+            "timezone_id": 72004
+        }
+
+        Output: {
+            "user_id": 8,
+            "email_id": "dbc@example.com",
+            "first_name": "dbc",
+            "last_name": "bravo",
+            "display_name": "dbc bravo",
+            "external_id": "EX2344",
+            "additional_param1": null,
+            "created_on": "1721308844",
+            "created_by": "1",
+            "modified_on": "1721717553",
+            "modified_by": "2",
+            "is_active": true,
+            "is_admin": true,
+            "first_logged_on": "1721308844",
+            "last_logged_on": "1721717553",
+            "role": "Admin",
+            "timezone_id": 72004
+        } 
+        If the user is already created:  status = 200 ( record is updated )
+        If the user record is newly created: status = 201 
+
+    II) Get All Users List 
+        -> Description: Provides a list of all the User records in User Master table.
+        -> Endpoint: /firebird/userMaster,
+        -> SAP APIs Invoked: None
+        -> Method: GET
+        -> Payload: None
+        -> Output: {
+    "success": true,
+    "statusCode": 200,
+    "type": "RecordFound",
+    "message": "A list of user master records",
+    "data": [
+            {
+                "user_id": 9,
+                "email_id": "djdc@example.com",
+                "first_name": "dmd",
+                "last_name": "bravo",
+                "display_name": "dbc bravo",
+                "external_id": "EX234M",
+                "additional_param1": null,
+                "created_on": "1721717664",
+                "created_by": "1",
+                "modified_on": "1721717664",
+                "modified_by": "2",
+                "is_active": true,
+                "is_admin": true,
+                "first_logged_on": "1721717664",
+                "last_logged_on": "1721717664",
+                "role": "Admin",
+                "timezone_id": 72004,
+                "timezone": {
+                    "taxonomy_id": 72004,
+                    "taxonomy_code": "US/Alaska_Alaska",
+                    "taxonomy_name": "US/Alaska - Alaska (UTC-09:00)",
+                    "taxonomy_value": "(UTC-09:00)",
+                    "taxonomy_type": "TIMEZONE_LIST"
+                }
+            }
+            ... other user items ...
+        ]
+    }
+
+
+    III) Get User by Id
+        -> Description: Provides a list of all the User records in User Master table.
+        -> Endpoint: /firebird/userMaster/:id
+        -> SAP APIs Invoked: None
+        -> Method: GET
+        -> Payload: 
+            Param: id  // is the user_id
+            -> Output: {
+        "success": true,
+        "statusCode": 200,
+        "type": "RecordFound",
+        "message": "User Master record for id :2",
+        "data": {
+            "user_id": 2,
+            "email_id": "dbc@example.com",
+            "first_name": "dbc",
+            "last_name": "bravo",
+            "display_name": "dbc bravo",
+            "external_id": "EX2343",
+            "additional_param1": null,
+            "created_on": "1717158250",
+            "created_by": "1",
+            "modified_on": "1721384592",
+            "modified_by": "2",
+            "is_active": true,
+            "is_admin": true,
+            "first_logged_on": "1717158250",
+            "last_logged_on": "1719922301",
+            "role": "Admin",
+            "timezone_id": 72006,
+            "timezone": {
+                "taxonomy_id": 72006,
+                "taxonomy_code": "America/Tijuana_Tijuana",
+                "taxonomy_name": "America/Tijuana - Tijuana (UTC-08:00)",
+                "taxonomy_value": "(UTC-08:00)",
+                "taxonomy_type": "TIMEZONE_LIST"
+            }
+        }
+    }
+
+    IV) Update User
+        -> Description: Update a User Master record
+        -> Endpoint: /firebird/userMaster
+        -> SAP APIs Invoked: None
+        -> Method: PUT
+        -> Payload: {
+        "user_id": 2,
+        "email_id": "dbc@example.com",
+        "first_name": "dbc",
+        "last_name": "bravo",
+        "display_name": "dbc bravo",
+        "external_id": "EX2343",
+        "additional_param1": null,
+        "created_by": 1,
+        "modified_by": 2,
+        "is_active": true,
+        "is_admin": true,
+        "role": "Admin",
+        "timezone_id": 72006
+    }
+        -> Output: {
+        "user_id": 2,
+        "email_id": "dbc@example.com",
+        "first_name": "dbc",
+        "last_name": "bravo",
+        "display_name": "dbc bravo",
+        "external_id": "EX2343",
+        "additional_param1": null,
+        "created_on": "1717158250",
+        "created_by": 1,
+        "modified_on": 1721821371,
+        "modified_by": 2,
+        "is_active": true,
+        "is_admin": true,
+        "first_logged_on": "1717158250",
+        "last_logged_on": "1719922301",
+        "role": "Admin",
+        "timezone_id": 72006
+    }
+
+
+A.2) Tenant Master
+    I) Get All Tenants List
+        -> Description: Provides a list of all the tenant records from Tenant Master table.
+        -> Endpoint: /firebird/userMaster/:id
+        -> SAP APIs Invoked: None
+        -> Method: GET
+        -> Payload: 
+            Param: id  // is the user_id
+        -> Output:
+
+    II) Get Tenant Record by Id
+        -> Description: Provides information about a tenant record from Tenant Master table.
+        -> Endpoint: /firebird/userMaster/:id
+        -> SAP APIs Invoked: None
+        -> Method: GET
+        -> Payload: 
+            Param: id  // is the user_id
+        -> Output:
+
+    III) Update a Tenant Record
+        -> Description: Update a Tenant record in Tenant Master table.
+        -> Endpoint: /firebird/userMaster/:id
+        -> SAP APIs Invoked: None
+        -> Method: PUT
+        -> Payload: 
+            Param: id  // is the user_id
+        -> Output:
+
+    IV) Create A Tenant Record
+        -> Description: Create a Tenant record in Tenant Master table.
+        -> Endpoint: /firebird/userMaster/:id
+        -> SAP APIs Invoked: None
+        -> Method: POST
+        -> Payload: 
+            Param: id  // is the user_id
+        -> Output: 
+
+    V) Delete a Tenant Record
+        -> Description: Delete a tenant record from Tenant Master table.
+        -> Endpoint: /firebird/userMaster/:id
+        -> SAP APIs Invoked: None
+        -> Method: DELETE
+        -> Payload: 
+            Param: id  // is the user_id
+        -> Output:
+
+A.3) Git Master
+    I) Create a Git Master Record
+    II) Get all Git Master Records list
+    III) Get a Git Master Record by Id
+    IV) Update a Git Mater Record
+    V) Delete a Git Master Record
+
+A.4) UFM Profile
+    I) Create a UFM Profile Record
+    II) Get All UFM Profile Recods
+    III) Get a UFM Profile Record by Id
+    IV) Update a UFM Profile Record
+    V) Delete a UFM Profile Record

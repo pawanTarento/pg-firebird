@@ -4,6 +4,9 @@ const UFMProfile = require("../models/ufmProfile");
 const { getBearerTokenForTenants, getBearerTokenForIFlow } = require("../util/auth");
 const { axiosInstance } = require("./cpiClient");
 const  sequelize  = require("../dbconfig/config");
+const { sendResponse } = require("../util/responseSender");
+const { HttpStatusCode } = require("axios");
+const { responseObject } = require("../constants/responseTypes");
 
 const getOAuth2Credentials = async ( req, res ) => {
     try {
@@ -35,6 +38,30 @@ const getOAuth2Credentials = async ( req, res ) => {
             url: tenantTwoDbResponse.tenant_host_url,
             token: tenantTwoBearerToken
         });
+
+        const tenantOneUtilBearerToken = await getBearerTokenForIFlow (tenantOneDbResponse) ;
+        
+        const axiosInstanceUtilTenantOne = axiosInstance({
+            url: tenantOneDbResponse.tenant_util_host_url,
+            headers: {
+                'CredentialType': 'OAuth2',
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
+            },
+            token: tenantOneUtilBearerToken
+        })
+
+        const tenantTwoUtilBearerToken = await getBearerTokenForIFlow (tenantTwoDbResponse) ;
+        
+        const axiosInstanceUtilTenantTwo = axiosInstance({
+            url: tenantTwoDbResponse.tenant_util_host_url,
+            headers: {
+                'CredentialType': 'OAuth2',
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
+            },
+            token: tenantTwoUtilBearerToken
+        })
     
         let [OAuth2TenantOneResponse, OAuth2TenantTwoResponse ] = await Promise.all([
             await axiosInstanceTenantOne.get("/api/v1/OAuth2ClientCredentials"),
@@ -43,18 +70,51 @@ const getOAuth2Credentials = async ( req, res ) => {
 
         let OAuth2CredentialArrayOne = flattenObjectsInArray(OAuth2TenantOneResponse.data.d.results);
         let OAuth2CredentialArrayTwo = flattenObjectsInArray(OAuth2TenantTwoResponse.data.d.results);   
-        // console.log('OAuth2CredentialArrayOne: ', JSON.stringify(OAuth2CredentialArrayOne, null, 2))
 
-        // process the 
+        const targetCredentialUrl = `/http/GetCredentials`; // this util must be deployed on both tenants
+        let [utilResponseOne, utilResponseTwo ] = await Promise.all([
+            await axiosInstanceUtilTenantOne.post(targetCredentialUrl, OAuth2CredentialArrayOne),
+            await axiosInstanceUtilTenantTwo.post(targetCredentialUrl, OAuth2CredentialArrayTwo)
+        ])
+        
+        function transformArray (inputArray) {
+            let updatedArr = inputArray.map(item => 
+                Object.fromEntries(
+                    Object.entries(item).map(([key, value]) => 
+                        key === "Password" ? ["ClientSecret", value] : [key, value]
+                    )
+                )
+            );
+
+            return updatedArr;
+        }
+
        const mainResponseArray = {
-             tenantOneOAuth2Credentials: mapToOAuth2Credentials(OAuth2CredentialArrayOne) , 
-             tenantTwoOAuth2Credentials: mapToOAuth2Credentials(OAuth2CredentialArrayTwo) 
+             tenantOneOAuth2Credentials: mapToOAuth2Credentials( transformArray(utilResponseOne.data) ) , 
+             tenantTwoOAuth2Credentials: mapToOAuth2Credentials( transformArray(utilResponseTwo.data) ) 
        }
+
+    //    return sendResponse(
+    //     res, // response object
+    //     true, // success
+    //     HttpStatusCode.Ok, // statusCode
+    //     responseObject.API_RESPONSE_OK, // status type
+    //     `List of all OAuth2 Credentials for both tenants`, // message
+    //     mainResponseArray
+    // );
 
         return res.status(200).json( { data: mainResponseArray })
     } catch(error) {
         console.log('Error in service fn getOAuth2Credentials: ', error);
-        return res.status(500).json({ error: `Internal server error: ${err.message}`}) 
+        return sendResponse(
+            res, // response object
+            false, // success
+            HttpStatusCode.InternalServerError, // statusCode
+            responseObject.INTERNAL_SERVER_ERROR, // status type
+            `Internal Server Error in listing OAuth2 Credentials: ${err.message}`, // message
+            {}
+        );
+        // return res.status(500).json({ error: `Internal server error: ${err.message}`}) 
     }
 }
 
