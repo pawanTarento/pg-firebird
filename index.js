@@ -4,36 +4,20 @@ const winston = require( "winston");
 const logRequest = require("./src/middlewares/print");
 const routeLoader = require("./src/routeLoader");
 const nodeCron = require("node-cron");
-const {processFailoverJob} = require("./src/cron/failover")
-// Do all these table DB things separately
-const Tenant = require("./src/models/tenant");
-const GitRepository = require("./src/models/gitRepository");
-const Taxonomy = require("./src/models/taxonomy");
-const UFMProfile = require("./src/models/ufmProfile");
-const UFMFailoverConfigState = require("./src/models/UFM/ufmFailoverConfigState");
-const UFMFailoverConfig = require("./src/models/UFM/ufmFailoverConfig");
-const UFMProfileRuntimeMap = require("./src/models/UFM/ufmProfileRuntimeMap");
-const UserModel = require("./src/models/userModel");
-const UFMSyncDetail = require("./src/models/UFM/ufmSyncDetail");
-const UFMSyncHeader = require("./src/models/UFM/ufmSyncHeader");
-const UFMFailoverProcess = require("./src/models/UFM/ufmFailoverProcess");
-const UFMFailoverProcessComponent = require("./src/models/UFM/ufmFailoverProcessComponent");
-const bodyParser = require("body-parser");
-
-// Production -> I will have to write a syncModel in order to make all tables simultaneously
-async function syncModels() {
+const {processFailoverJob} = require("./src/cron/failover");
+const { ensureSchema } = require('./initializeTables');
+  
+  // Higher-level error handling
+  (async () => {
     try {
-     
-        // await UFMFailoverProcess.sync({ force: true });
-        // await UFMFailoverProcessComponent.sync({ force: true });
-        // await UFMFailoverConfig.sync({ force: true});
-
+      await ensureSchema('schemaone');
     } catch (error) {
-        console.error('Error syncing models:', error);
+      console.error('\nFailed to ensure schema:', error); // rethrow is handled in this IIFE
+      console.log('\nTry creating schema manually first');
+      // Handle the error, such as logging it, sending a notification, or exiting the process
+      // process.exit(1);  // Exit the process with a failure code
     }
-}
-
-// syncModels(); 
+  })();
 
 const app = express();
 
@@ -45,7 +29,7 @@ app.use(express.urlencoded({ limit: "50mb", extended: true, parameterLimit: 5000
 
 
 // All routes
-app.use("/firebird/", routeLoader);
+app.use("/firebird/",routeLoader);
 
 // node-cron to perform failover processing 
 nodeCron.schedule('* * * * *', processFailoverJob );
@@ -68,5 +52,4 @@ app.use((err, req, res, next)=>{
 app.listen(PORT, ()=> {
     console.log(`Server is running on port: ${PORT}`)
 })
-
 
