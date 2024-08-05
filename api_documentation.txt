@@ -898,7 +898,7 @@ D) User Credentials
         -> Endpoint: /firebird/userCredentials/list/:ufmProfileId/:componentTypeId
         -> SAP APIs Invoked: 
             1. /api/v1/UserCredentials [ method: GET ]
-            2. /http/GetCredentials [ Iflow utility]
+            2. /http/GetCredentials [ Iflow utility to get Password]
             3. /api/v1/IntegrationRuntimeArtifacts('Util_GetCredentials')
 
         -> Method: GET
@@ -1146,7 +1146,7 @@ G) Keystore and Certificates
 
             -> Endpoint: /firebird/keystore/:tenantOneId/:tenantTwoId
             -> Method: GET
-            -> Payload: 
+            -> Payload: source and target tenant Ids in params
             -> Output: {
                 "data": {
                     "tenantOneKeystore": [
@@ -1183,79 +1183,352 @@ G) Keystore and Certificates
             }
 
     G.2) Copy Certificates 
-            -> Description: 
+            -> Description: The certificates are updated from source to target tenants depending on the ufm profile id. To get the certificate from source tenant, hexalias is used using 1st SAP API. Then it is updated/posted in the target tenant depending on whether the hexalias exists in the target tenant or not, using our 2nd SAP API. The certificates with issues gets mentioned under "errorKeysValue" in the output JSON.
             -> SAP APIs Invoked: 
+                1. /api/v1/KeystoreEntries('${Hexalias}')/Certificate/$value [ method: GET, to get Certificate ]
+                2. /api/v1/CertificateResources('${Hexalias}')/$value?fingerprintVerified=true&returnKeystoreEntries=true&update=true [Method: PUT, to update/post certificate ]
 
             -> Endpoint: /firebird/keystore/certificate
             -> Method: POST
             -> Payload: { "ufm_profile_id": 1, "component_type_id": 11004, "user_id": 1 }
-            -> Output: 
+            -> Output: {
+                "message": "Certificates copied",
+                "errorKeysValue": [
+                    {
+                        "hexalias": "7361705F766572697369676E20636C6173732033207075626C6963207072696D6172792063657274696669636174696F6E20617574686F72697479202D206735",
+                        "alias": "sap_verisign class 3 public primary certification authority - g5",
+                        "errMsg": "Request failed with status code 403"
+                    },
+                    {
+                        "hexalias": "7361705F646967696365727420676C6F62616C206361206732",
+                        "alias": "sap_digicert global ca g2",
+                        "errMsg": "Request failed with status code 403"
+                    }
+                ],
+                "successArray": [
+                    {
+                        "hexAlias": "656467652D6963656C6C2D71612D30312E70672E636F6D2D6B70",
+                        "alias": "edge-icell-qa-01.pg.com-kp"
+                    }
+                ]
+            }
 
 --------------------------------------------------------------------------
 
 H) Number Ranges
     H.1) Get All Number Ranges 
-            -> Description: Creates a user record. Once a user is logged in for the first time, a record is created in User Master table (user). If the user record already exists, it is only updated in the user master table (user), for instance the last logged on time is updated upon a call to this API from Front End (FE).
-            -> SAP APIs Invoked: None
-            -> Endpoint: /firebird/userMaster
+            -> Description: Lists all the number ranges from source and target tenants depending on the UFM Profile Id. For getting the Number ranges objects from both tenants we are using the mentioned SAP API.
+            -> SAP APIs Invoked:
+                1. /api/v1/NumberRanges [ method: GET, to get list of all number ranges within a tenant]
+            -> Endpoint: /firebird/numberRanges/list/:ufmProfileId/:componentTypeId
             -> Method: POST
-            -> Payload: 
-            -> Output: 
+            -> Payload: ufm profile id and component type id in params
+            -> Output: {
+                    "data": {
+                        "tenantOneNumberRanges": [
+                            {
+                                "__metadata": {
+                                    "id": "https://pgisqa1.it-cpi013.cfapps.us21.hana.ondemand.com:443/api/v1/NumberRanges('TestPg1')",
+                                    "uri": "https://pgisqa1.it-cpi013.cfapps.us21.hana.ondemand.com:443/api/v1/NumberRanges('TestPg1')",
+                                    "type": "com.sap.hci.api.NumberRange"
+                                },
+                                "Name": "TestPg1",
+                                "Description": "Test Range",
+                                "MaxValue": "99999999",
+                                "MinValue": "1",
+                                "Rotate": "true",
+                                "CurrentValue": "10",
+                                "FieldLength": "12",
+                                "DeployedBy": "sb-773c5641-1cb9-448f-ab14-a0d824fd1b7c!b11838|it!b46",
+                                "DeployedOn": "/Date(1722262443391)/"
+                            },
+                            ... other number ranges objects ...
+                        ],
+                        "tenantTwoNumberRanges": [... similar data to tenant One...]
+                    }
+            }
 
     H.2) Copy Number Ranges
-            -> Description: Creates a user record. Once a user is logged in for the first time, a record is created in User Master table (user). If the user record already exists, it is only updated in the user master table (user), for instance the last logged on time is updated upon a call to this API from Front End (FE).
-            -> SAP APIs Invoked: None
-            -> Endpoint: /firebird/userMaster
+            -> Description: Copying number ranges from source to target tenant. If the flag doesExistOnTarget is true, we make a PUT SAP API call, otherwise we make a POST call to SAP API. In short, if the number ranges dont exist on the target tenant they would be created otherwise if they exist they would be updated from the the source tenant.
+            -> SAP APIs Invoked:
+                1. /api/v1/NumberRanges('{Name}') [ method: PUT, for updating the number range]
+                2. /api/v1/NumberRanges [ method: POST, for creating the number range object]
+
+            -> Endpoint: /firebird/numberRanges/copy
             -> Method: POST
-            -> Payload: 
-            -> Output: 
+            -> Payload: {
+                    "ufm_profile_id": 1,
+                    "component_type_id": 11005, // for number ranges in taxonomy
+                    "user_id": 1,
+                    "payload": [
+                        {
+                            "Name": "TestPg1",
+                            "Description": "Test Range",
+                            "MaxValue": "99999999",
+                            "MinValue": "0",
+                            "Rotate": "true",
+                            "CurrentValue": "0",
+                            "FieldLength": "12",
+                            "DeployedBy": "EX6633",
+                            "DeployedOn": "/Date(1718278750911)/",
+                            "doesExistOnTarget": true
+                        }
+                    ]
+            }
+
+            -> Output: {
+                "message": "Number ranges copied successfully."
+            }
 
 --------------------------------------------------------------------------
 
 I) Packages and Artifacts
     I.1) List All Packages with Artifacts
-            -> Description: Creates a user record. Once a user is logged in for the first time, a record is created in User Master table (user). If the user record already exists, it is only updated in the user master table (user), for instance the last logged on time is updated upon a call to this API from Front End (FE).
-            -> SAP APIs Invoked: None
-            -> Endpoint: /firebird/userMaster
-            -> Method: POST
-            -> Payload: 
-            -> Output: 
+            -> Description: Lists all packages with their corresponding artifacts for both source and target tenants. The list contains certain flags for packages, artifacts for showing their git backup status. The flag "doesConfigExists" tells whether for an artifact some configurations exist or not. The "configCheckSum" sends the checksum for configurations of the artifact which is used to compare (in front end) for which artifacts configuration has changed. And then there is "doesArtifactExistInGit" which shows whether the given artifact's backup has been taken in the github backup repository, similarly "doesExistInGit" flag at package level indicates whether a backup has been taken for package in github repository.
+            
+            -> SAP APIs Invoked:
+                1. /api/v1/IntegrationPackages [ method: GET, list all Packages under for a tenant]
+
+                2. /api/v1/IntegrationPackages('{PackageId}')/IntegrationDesigntimeArtifacts [ method: GET, fetches all Integration Flow designtime artifacts for a package]
+
+                3. /api/v1/IntegrationPackages('{PackageId}')/MessageMappingDesigntimeArtifacts [ method: GET, fetches all Message mapping designtime artifacts for a package]
+
+                4. /api/v1/IntegrationPackages('{PackageId}')/ValueMappingDesigntimeArtifacts [ method: GET, fetches all Value mapping designtime artifacts for a package]
+
+                5. /api/v1/IntegrationPackages('{PackageId}')/ScriptCollectionDesigntimeArtifacts [ method: GET, fetches all Script collection designtime artifacts for a package]
+
+                6. /api/v1/IntegrationDesigntimeArtifacts(Id='{ArtifactId}',Version='{ArtifactVersion}')/Configurations [ method: GET, fetches all the configuration for a designtime artifact]
+
+            -> Endpoint: /firebird/sync/:tenantOneId/:tenantTwoId/:profileId
+            -> Method: GET
+            -> Payload: 1
+            -> Output: {
+                "data": [
+                            {
+                                "key": "Tenant QA 1",
+                                "packages": [
+                                    {
+                                        "PackageId": "SAPCPIPOC",
+                                        "PackageName": "1. SAP Cloud Integration POCs",
+                                        "Version": "1.0.0",
+                                        "Description": "<p></p>",
+                                        "ShortText": "POCs",
+                                        "SupportedPlatform": "Cloud Integration",
+                                        "Products": "",
+                                        "Keywords": "",
+                                        "Countries": "",
+                                        "Industries": "",
+                                        "LineOfBusiness": "",
+                                        "doesExistInGit": false,
+                                        "artifacts": [
+                                            {
+                                                "Id": "RFC_OData_Call_S4Hana_To_Gov",
+                                                "Name": "RFC_OData_Call_S4Hana_To_Gov",
+                                                "Type": "IntegrationDesigntimeArtifacts",
+                                                "Version": "1.0.2",
+                                                "doesConfigExists": true,
+                                                "configCheckSum": "jxjMdk2324QAXnmopBEoLSLMx",
+                                                "doesArtifactExistInGit": false
+                                            }
+                                        ]
+                                    },
+                                    ... other packages and artifacts info similarly ...
+                                ]
+                            },
+                            {
+                                "key": "Tenant QA 2",
+                                "packages": [
+                                    {
+                                        "PackageId": "SAPCPIPOC",
+                                        "PackageName": "1. SAP Cloud Integration POCs",
+                                        "Version": "1.0.0",
+                                        "Description": "<p></p>",
+                                        "ShortText": "POCs",
+                                        "SupportedPlatform": "Cloud Integration",
+                                        "Products": "",
+                                        "Keywords": "",
+                                        "Countries": "",
+                                        "Industries": "",
+                                        "LineOfBusiness": "",
+                                        "doesExistInGit": false,
+                                        "artifacts": [
+                                            {
+                                                "Id": "RFC_OData_Call_S4Hana_To_Gov",
+                                                "Name": "RFC_OData_Call_S4Hana_To_Gov",
+                                                "Type": "IntegrationDesigntimeArtifacts",
+                                                "Version": "1.0.2",
+                                                "doesConfigExists": true,
+                                                "configCheckSum": "jxjMdk2324QAXnmopBEoLSLMx",
+                                                "doesArtifactExistInGit": false
+                                            }
+                                        ]
+                                    },
+                                    ... other packages and artifacts info similarly ...
+                                ]
+                            }
+                    ]
+            }
 
     I.2) Copy Packages and Artifacts
-            -> Description: Creates a user record. Once a user is logged in for the first time, a record is created in User Master table (user). If the user record already exists, it is only updated in the user master table (user), for instance the last logged on time is updated upon a call to this API from Front End (FE).
-            -> SAP APIs Invoked: None
-            -> Endpoint: /firebird/userMaster
+            -> Description: Copying packages and artifacts from source to target tenant. If the package does not exist on target tenant first it is created and then the artifacts are copied. If the package exist but artifacts is missing then the missing artifacts are copied in the target tenant. If there is a version mismatch then, there are two cases:
+                1. If artifact type is Integration, message mapping and script collection designtime artifact, then use the PUT APIs (as mentioned in SAP APIs inovked section)
+                2. If the artifact type is Value Mapping, first we delete the artifact and then create it again 
+
+            -> SAP APIs Invoked:
+                1. /api/v1/IntegrationPackages [ method: POST, to create a empty package]
+
+                2. /api/v1/IntegrationDesigntimeArtifacts(Id='{ArtifactId}',Version='${ArtifactVersion}')/$value [method: PUT, to get the content of the Integration designtime artifact ]
+
+                3. /api/v1/MessageMappingDesigntimeArtifacts(Id='{ArtifactId}',Version='${ArtifactVersion}')/$value [method: PUT, to get the content of the Message mapping designtime artifact ]
+
+                5. /api/v1/ScriptCollectionDesigntimeArtifacts(Id='{ArtifactId}',Version='${ArtifactVersion}')/$value [method: PUT, to get the content of the script collection designtime artifact ]
+
+                4. /api/v1/ValueMappingDesigntimeArtifacts(Id='{ArtifactId}',Version='${ArtifactVersion}')/$value [method: PUT, to get the content of the value mapping designtime artifact ]
+
+                5. /api/v1/ValueMappingDesigntimeArtifacts [method: POST, to get content of artifact]
+
+                6. /api/v1/ValueMappingDesigntimeArtifacts(Id='{ArtifactId}',Version='{RequiredVersion}') [method: DELETE, to delete the value mapping artifact for creating it later on, for version change]
+
+            -> Endpoint: /firebird/integrationPackages/clone
             -> Method: POST
-            -> Payload: 
-            -> Output: 
+            -> Payload: {
+                "ufm_profile_id": 1,
+                "component_type_id": 11001,
+                "user_id": 1,
+                "payload": [
+                    {
+                        "packageId": "SAPCPIPOC",
+                        "PackageName": "1. SAP Cloud Integration POCs",
+                        "Description": "",
+                        "ShortText": "",
+                        "SupportedPlatform": "",
+                        "Products": "",
+                        "Keywords": "",
+                        "Countries": "",
+                        "Industries": "",
+                        "LineOfBusiness": "",
+                        "isExistingOnTarget": false,
+                        "artifacts": [
+                            {
+                                "Id": "OData_S4Hana_To_Gov_SFTP",
+                                "Name": "OData_S4Hana_To_Gov_SFTP",
+                                "Type": "IntegrationDesigntimeArtifacts",
+                                "Version": "1.0.12",
+                                "isVersionChange": false
+                            }
+                        ]
+                    }
+                ]
+            }
+            -> Output: { 
+                message: "Packages and Artifacts copied successfully",
+                unsuccessfulPackage: [], 
+                unsuccessfulPackageArtifact:  [] 
+            }
 
     I.3) Copy Configurations
-            -> Description: Creates a user record. Once a user is logged in for the first time, a record is created in User Master table (user). If the user record already exists, it is only updated in the user master table (user), for instance the last logged on time is updated upon a call to this API from Front End (FE).
-            -> SAP APIs Invoked: None
-            -> Endpoint: /firebird/userMaster
+            -> Description: Packages and Artifacts have certain configurations. They need to be copied. 
+            In api which lists packages and artifacts, there is a flag: doesConfigExists. If it is true, then in payload only those artifacts are sent for copying of configurations using the SAP APIs. 
+            -> SAP APIs Invoked:
+                1. /api/v1/IntegrationDesigntimeArtifacts(Id='{ArtifactId}',Version='{ArtifactVersion}')/Configurations [method: GET, to get the configurations for an artifact]
+
+                2. /api/v1/IntegrationDesigntimeArtifacts(Id='{ArtifactId}',Version='${ArtifactVersion}')/$links/Configurations('${ParameterKey}') [method: PUT, to update configuration on target tenant]
+
+            -> Endpoint: /firebird/integrationPackages/configUpdate
             -> Method: POST
-            -> Payload: 
-            -> Output: 
+            -> Payload:   { "ufm_profile_id": 1,
+                "component_type_id": 11001,
+                "packages": [
+                    {
+                                    "PackageId": "LuisTestPackage",
+                                    "PackageName": "Luis' Test Package",
+                                    "Version": "1.0.0",
+                                    "Description": "<p></p>",
+                                    "ShortText": "Personal Test Package",
+                                    "SupportedPlatform": "Cloud Integration",
+                                    "Products": "",
+                                    "Keywords": "",
+                                    "Countries": "",
+                                    "Industries": "",
+                                    "LineOfBusiness": "",
+                                    "artifacts":  [
+                                    {
+                                            "Id": "Timer_Testing",
+                                            "Name": "IF_Timer",
+                                            "Type": "IntegrationDesigntimeArtifacts",
+                                            "Version": "1.0.1",
+                                            "doesConfigExists": true
+                                        }
+                                        ... other artifacts under the packages ...
+                                    ]
+                    }
+                ]
+            }
+
+            -> Output: {
+                "message": "Configurations copied successfully",
+                "failedCounter": 2,
+                "failedConfigurations": [
+                    {
+                        "artifactId": "JDBC_SELECT_TEST",
+                        "error": "Request failed with status code 400",
+                        "errorMessage": "Failed to copy configuration for JDBC_SELECT_TEST: Request failed with status code 400"
+                    },
+                    {
+                        "artifactId": "IF_Timer_LoadTesting_Datastore_Write",
+                        "error": "Request failed with status code 400",
+                        "errorMessage": "Failed to copy configuration for IF_Timer_LoadTesting_Datastore_Write: Request failed with status code 400"
+                    }
+                ]
+            }
 
 --------------------------------------------------------------------------
             
 J) Failover
     I.1) Schedule a planned/unplanned Failover (or Switchback)
-            -> Description: Creates a user record. Once a user is logged in for the first time, a record is created in User Master table (user). If the user record already exists, it is only updated in the user master table (user), for instance the last logged on time is updated upon a call to this API from Front End (FE).
+            -> Description: It schedules a Failover(or Switchback). The Scheduled Failover(or Switchback) then runs in the background and process the request. If a failover/switchback is already running, then it would not allow to shedule another failover/switchback. We are also sending a flag in the payload to keep a record of whether the failover/switchback is a planned or unplanned one.
             -> SAP APIs Invoked: None
-            -> Endpoint: /firebird/userMaster
+            -> Endpoint: /firebird/runtimeArtifacts/schedule-failover
             -> Method: POST
-            -> Payload: 
-            -> Output: 
+            -> Payload: {
+                "config_state_id": 14,  
+                "ufm_profile_id": 1,
+                "user_id": 1,
+                "is_planned_failover":true
+                ,"entry_type":"FAILOVER" // another option "SWITCH_BACK"
+
+            }
+            -> Output: { "message": "Failover scheduled successfully" }
 
     I.2) Get status of Planned/Unplanned Failover (or Switchback)
 
-            -> Description: Creates a user record. Once a user is logged in for the first time, a record is created in User Master table (user). If the user record already exists, it is only updated in the user master table (user), for instance the last logged on time is updated upon a call to this API from Front End (FE).
+            -> Description: This gives the current status or previous status of a failover/switchback process. This returns which buttons: Failover/Switchback to enable/disable, and the deployment/undeployment status of each of the runtime artifacts could be seen on source and target tenants. Three cases are in this:
+                1. If the failover/Switchback is already running, them disable both buttons flag would be sent (false)
+                2. If failover has been completed, enable Switchback button would be sent 
+                3. If no failover/switchback has been performed yet for the configuration saved. Then enable failover button flag would be sent, along with no artifacts.
             -> SAP APIs Invoked: None
-            -> Endpoint: /firebird/userMaster
+            -> Endpoint: /firebird/runtimeArtifacts/failover-status/:ufmProfileId
             -> Method: POST
-            -> Payload: 
-            -> Output: 
+            -> Payload: UFM Profile Id as input params
+            -> Output: {
+                "success": true,
+                "statusCode": 200,
+                "type": "ResponsePositive",
+                "message": "The artifacts are in initial state and ready to schedule a failover process.",
+                "data": {
+                    "processes": [
+                        {
+                            "type": "FAILOVER",
+                            "enableButtonFlag": true
+                        },
+                        {
+                            "type": "SWITCH_BACK",
+                            "enableButtonFlag": false
+                        }
+                    ],
+                    "lineItemInfo": []
+                }
+            }
         
 --------------------------------------------------------------------------
 
