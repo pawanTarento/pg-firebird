@@ -1,6 +1,6 @@
-// gitModel.js
 const { DataTypes, Model } = require('sequelize');
 const sequelize = require('../dbconfig/config');
+const { schemaName } = require('../constants/schemaName');
 
 class Taxonomy extends Model {}
 
@@ -81,13 +81,13 @@ Taxonomy.init({
 
 }, {
     sequelize,
+    // schema: schemaName,
     modelName: 'taxonomy',
     tableName: 'taxonomy',
     createdAt: 'created_on', 
     updatedAt: false, // In case we dont want this column
-    timestamps: true 
+    timestamps: false 
 });
 
 module.exports = Taxonomy;
 
-Taxonomy.sync({ force: false });

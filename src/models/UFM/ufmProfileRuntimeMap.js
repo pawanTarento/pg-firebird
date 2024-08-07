@@ -1,5 +1,6 @@
 const { DataTypes, Model } = require('sequelize');
 const sequelize = require('../../dbconfig/config');
+const { schemaName } = require('../../constants/schemaName');
 
 class UFMProfileRuntimeMap extends Model {}
 
@@ -78,6 +79,7 @@ UFMProfileRuntimeMap.init({
     },
 }, {
     sequelize,
+    // schema: schemaName,
     modelName: 'UFMProfileRuntimeMap',
     tableName: 'ufm_profile_runtime_map',
     createdAt: 'created_on', 

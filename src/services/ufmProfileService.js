@@ -60,7 +60,8 @@ const getAllUfmRecords = async (req, res) => {
           ],
           required: false
         }
-      ]
+      ],
+      order: [['modified_on', 'DESC']]
     })
 
     if (!response) {
@@ -299,7 +300,7 @@ const updateUfmRecord = async (req, res) => {
           false, // success
           HttpStatusCode.InternalServerError, // statusCode
           responseObject.INTERNAL_SERVER_ERROR, // status type
-          `Internal Server Error: in updating a tenant record.`, // message
+          `Internal Server Error: in updating a ufm profile record.`, // message
           {}
       );
         // res.status(500).json({ error: 'Internal Server Error' });

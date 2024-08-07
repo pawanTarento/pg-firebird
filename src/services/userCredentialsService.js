@@ -13,58 +13,119 @@ const getUserCredentials = async (req, res) => {
         const { ufmProfileId, componentTypeId } = req.params;
         console.log(`ufmProfileId: ${ufmProfileId}, componentTypeId: ${componentTypeId}`);
 
-        const ufmProfileResponse = await UFMProfile.findOne( {
+        const ufmProfileResponse = await UFMProfile.findOne({
             where: {
                 ufm_profile_id: ufmProfileId
             }
         })
-        
+
         if (!ufmProfileResponse) {
-            return res.status(400).json({ error: "UFM Profile id not found"})
+            return res.status(400).json({ error: "UFM Profile id not found" })
         }
 
         const [
-             tenantOneBearerToken, tenantTwoBearerToken,
-             tenantOneDbResponse, tenantTwoDbResponse 
+            tenantOneBearerToken, tenantTwoBearerToken,
+            tenantOneDbResponse, tenantTwoDbResponse
         ] = await getBearerTokenForTenants(
-            ufmProfileResponse.ufm_profile_primary_tenant_id, 
+            ufmProfileResponse.ufm_profile_primary_tenant_id,
             ufmProfileResponse.ufm_profile_secondary_tenant_id);
-        
+
         const axiosInstanceTenantOne = axiosInstance({
             url: tenantOneDbResponse.tenant_host_url,
             token: tenantOneBearerToken
         });
-    
+
         const axiosInstanceTenantTwo = axiosInstance({
             url: tenantTwoDbResponse.tenant_host_url,
             token: tenantTwoBearerToken
         });
-    
-        let [userCredentialsTenantOneResponse, userCredentialsTenantTwoResponse ] = await Promise.all([
-            await axiosInstanceTenantOne.get("/api/v1/UserCredentials"),
-            await axiosInstanceTenantTwo.get("/api/v1/UserCredentials")
-        ])
 
-    //    const mainResponseArray = {
-    //         tenantOneUserCredentials: mapToUserCredentials( userCredentialsTenantOneResponse.data.d.results ), 
-    //         tenantTwoUserCredentials: mapToUserCredentials( userCredentialsTenantTwoResponse.data.d.results )
-    //    }
+        let runTimeResponse = {};
+        let errorInfo = { utilErrorMessageTenantOne: null, utilErrorMessageTenantTwo: null };
 
-       const mainResponseArray = {
-        tenantOneUserCredentials:  userCredentialsTenantOneResponse.data.d.results, 
-        tenantTwoUserCredentials:  userCredentialsTenantTwoResponse.data.d.results
-    }
-        return res.status(200).json( { data: mainResponseArray })
-    } catch(error) {
+        try {
+            runTimeResponse['TenantOne'] = await axiosInstanceTenantOne.get("/api/v1/IntegrationRuntimeArtifacts('Util_GetCredentials')")
+        } catch (error) {
+            errorInfo.utilErrorMessageTenantOne = `Util_GetCredentials not deployed for tenant: ${tenantOneDbResponse.tenant_name}. Please deploy/check it`;
+        }
+
+        try {
+            runTimeResponse['TenantTwo'] = await axiosInstanceTenantTwo.get("/api/v1/IntegrationRuntimeArtifacts('Util_GetCredentials')")
+        } catch (error) {
+            errorInfo.utilErrorMessageTenantTwo = `Util_GetCredentials not deployed for tenant: ${tenantTwoDbResponse.tenant_name}. Please deploy/check it`;
+        }
+
+        if (errorInfo.utilErrorMessageTenantOne && errorInfo.utilErrorMessageTenantTwo) {
+            return res.status(200).json({ data: { utilErrorMessage: `Util_GetCredentials not deployed for tenant: ${tenantOneDbResponse.tenant_name} and ${tenantTwoDbResponse.tenant_name}. Please deploy/check it` } });
+        } else if (errorInfo.utilErrorMessageTenantOne && !errorInfo.utilErrorMessageTenantTwo) {
+            return res.status(200).json({ data: { utilErrorMessage: errorInfo.utilErrorMessageTenantOne } });
+        } else if (errorInfo.utilErrorMessageTenantTwo && !errorInfo.utilErrorMessageTenantOne) {
+            return res.status(200).json({ data: { utilErrorMessage: errorInfo.utilErrorMessageTenantTwo } });
+        }
+
+        const updatedCred = await Promise.all([
+            getUpdatedUtil(tenantOneDbResponse, axiosInstanceTenantOne),
+            getUpdatedUtil(tenantTwoDbResponse, axiosInstanceTenantTwo)
+        ]);
+
+        const mainResponseArrays = {
+            tenantOneUserCredentials: updatedCred[0],
+            tenantTwoUserCredentials: updatedCred[1]
+        };
+        return res.status(200).json({ data: mainResponseArrays });
+    } catch (error) {
         console.log('Error in service fn getUserCredentials: ', error);
-        return sendResponse(
-            res, // response object
-            false, // success
-            HttpStatusCode.InternalServerError, // statusCode
-            responseObject.INTERNAL_SERVER_ERROR, // status type
-            `Internal Server Error: in getting user credentials list.`, // message
-            {}
-        );
+        return res.status(500).json({ error: error.message});
+    }
+}
+
+const getUpdatedUtil = async (DBResponse, axiosInstanceTenant) => {
+    try {
+        const response = await axiosInstanceTenant.get("/api/v1/UserCredentials");
+
+        const userCreds = response.data.d.results;
+
+        const iFlowToken = await getBearerTokenForIFlow(DBResponse);
+        const axiosInstanceUtilTenant = axiosInstance({
+            url: DBResponse.tenant_util_host_url,
+            headers: {
+                'CredentialType': 'UserCredential',
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
+            },
+            token: iFlowToken
+        });
+
+        const targetCredentialUrl = `/http/GetCredentials`;
+        const utilInfo = await axiosInstanceUtilTenant.post(targetCredentialUrl, userCreds);
+
+        if (utilInfo.status !== 200) {
+            return userCreds;
+        }
+
+        const utilResponseMap = new Map(utilInfo.data.map(item => {
+            let Credential = {
+                Password: item.Password,
+                Status: item.SecurityArtifactDescriptor.Status,
+                User: item.User
+            };
+            return [item.Name, Credential];
+        }));
+
+        userCreds.forEach(item => {
+            const util = utilResponseMap.get(item.Name);
+            if (util.User = item.User) {
+                item.Password = util.Password;
+                item.Status = util.Status;
+                item.isPasswordCorrupt = (util.Status == "NOT_FOUND" || util.Password === null) ? true : false;
+            }
+        });
+
+        return userCreds.filter( item => item.Status !== "NOT_FOUND" );
+    } catch (error) {
+        console.log(error);
+        console.log('error in getUpdatedUtil');
+        throw new Error(error);
     }
 }
 
@@ -123,15 +184,10 @@ const copyUserCredentialsInfo = async (req, res) => {
     let validNames = []
     let inputData = utilResponse.data
     for ( let i = 0; i < inputData.length; i++) {
-        if ( inputData[i].SecurityArtifactDescriptor.Status === "NOT_FOUND" ||
-            inputData[i].Password === null
-        ) {
-            console.log('Status: ',inputData[i].SecurityArtifactDescriptor.Status,  'password:', inputData[i].Password );
-            invalidCredentials.push(inputData[i].Name)
-        } else {
+        // if ( inputData[i].SecurityArtifactDescriptor.Status === "NOT_FOUND" ) 
             validNames.push (inputData[i].Name)
             validCredentialPayload.push( inputData[i])
-        }
+        
     }
 
     const updateResult =    await UFMSyncHeader.update(
@@ -169,19 +225,32 @@ const copyUserCredentialsInfo = async (req, res) => {
         let response;
 
             if ( credential.doesExistOnTarget) {
+    
                 response = await axiosInstanceTenantTwo.put(encodeURI(targetUrl), {
                     "Name": credential.Name,
                     "Kind": credential.Kind,
                     "Description": credential.Description,
                     "User": credential.User,
-                    "Password": foundElement.Password,
+                    "Password": foundElement.Password === null ? "" : foundElement.Password,
                     "CompanyId": credential.CompanyId
                 })
             } else {
+                console.log('\ndoes Exist', doesExistOnTarget)
                 delete credential.doesExistOnTarget;
+                delete credential.SecurityArtifactDescriptor;
+                delete credential.__metadata;
+
+                console.log('\nPOST FOR ', JSON.stringify( credential , null, 2));
+
+                if (foundElement.Password === null) {
+                    console.log('\nZY Found Element Password: ', foundElement.Password, credential.Name)
+                } else {
+                    console.log('2. Password',  foundElement.Password);
+                }
     
                 response = await axiosInstanceTenantTwo.post(targetUrl, {
-                    ...credential, "Password": foundElement.Password
+                    ...credential, 
+                    "Password": foundElement.Password === null ? "" : foundElement.Password
                  })
             }
        
@@ -193,7 +262,7 @@ const copyUserCredentialsInfo = async (req, res) => {
                     ufm_sync_uc_kind: credential.Kind,
                     ufm_sync_uc_description: credential.Description,
                     ufm_sync_uc_user: credential.User,
-                    ufm_sync_uc_password: foundElement.Password,
+                    ufm_sync_uc_password: foundElement.Password === null ? "" : foundElement.Password,
                     ufm_sync_uc_company_id: credential.CompanyId,
                 }, { transaction });
             }
@@ -208,7 +277,7 @@ const copyUserCredentialsInfo = async (req, res) => {
     await transaction.commit();
 
     if (invalidCredentials.length) {
-        return res.status(409).json({ invalidCredentials })
+        return res.status(200).json({ invalidCredentials })
     }
 
     return res.status(200).json({ message: "User credentials copied successfully"})
@@ -221,7 +290,7 @@ const copyUserCredentialsInfo = async (req, res) => {
             false, // success
             HttpStatusCode.InternalServerError, // statusCode
             responseObject.INTERNAL_SERVER_ERROR, // status type
-            `Internal Server Error: in copying user credentials`, // message
+            `${err.message}`, // message
             {}
         );
         // return res.status(500).json({ error: `Internal Server Error: ${err.message}`})

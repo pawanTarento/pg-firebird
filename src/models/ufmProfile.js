@@ -5,6 +5,8 @@ const Tenant = require('./tenant');
 const UFMProfileRuntimeMap = require('./UFM/ufmProfileRuntimeMap');
 const Taxonomy = require('./taxonomy');
 const UFMSyncHeader = require('./UFM/ufmSyncHeader');
+const UFMBackupHeader = require('./ufmBackupHeader');
+const { schemaName } = require('../constants/schemaName');
 
 class UFMProfile extends Model {}
 
@@ -21,7 +23,7 @@ UFMProfile.init({
     ufm_profile_environment_id: { // taxonomy
         type: DataTypes.INTEGER,
         allowNull: true,
-        defaultValue: 12001 // remove this later on
+        // defaultValue: 12001 // remove this later on
     },
     ufm_profile_primary_tenant_id: {
         type: DataTypes.INTEGER,
@@ -38,7 +40,7 @@ UFMProfile.init({
     ufm_profile_tenant_state_id: {
         type: DataTypes.INTEGER,
         allowNull: true,
-        defaultValue: 14001 // remove this later on
+        // defaultValue: 14001 // remove this later on
     },
     ufm_profile_source_runtime: {
         type: DataTypes.STRING(60),
@@ -68,6 +70,7 @@ UFMProfile.init({
     }
 }, {
     sequelize,
+    // schema: schemaName,
     modelName: 'UFMProfile',
     tableName: 'ufm_profile',
     createdAt: 'created_on', 
@@ -95,3 +98,6 @@ UFMProfile.belongsTo( Taxonomy, { foreignKey: "ufm_profile_environment_id", as: 
 UFMProfile.belongsTo( Taxonomy, { foreignKey: "ufm_profile_tenant_state_id", as : "tenant_state"});
 UFMSyncHeader.belongsTo( UFMProfile , { foreignKey: "ufm_profile_id"});
 UFMProfile.hasMany( UFMSyncHeader, { foreignKey: "ufm_profile_id"});
+
+UFMBackupHeader.belongsTo(UFMProfile, { foreignKey: "ufm_profile_id" });
+UFMProfile.hasMany(UFMBackupHeader, { foreignKey: "ufm_profile_id" });

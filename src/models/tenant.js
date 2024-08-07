@@ -4,6 +4,7 @@ const sequelize = require('../dbconfig/config');
 const UFMProfile = require('./ufmProfile');
 const Taxonomy = require('./taxonomy');
 const UserModel = require('./userModel');
+const { schemaName } = require('../constants/schemaName');
 
 class Tenant extends Model {}
 
@@ -51,13 +52,11 @@ Tenant.init({
     },
     tenant_host_test_status_id: {
         type: DataTypes.INTEGER,
-        allowNull: true,
-        defaultValue: null
+        allowNull: true
     },
     tenant_host_test_status_on: {
         type: DataTypes.BIGINT,
-        allowNull: true,
-        defaultValue: null
+        allowNull: true
     },
     tenant_util_host_url: {
         type: DataTypes.STRING(2048),
@@ -107,6 +106,7 @@ Tenant.init({
     }
 }, {
     sequelize,
+    // schema: schemaName,
     modelName: 'Tenant',
     tableName: 'Tenant',
     createdAt: 'created_on', 
@@ -127,8 +127,8 @@ module.exports = Tenant;
 
 // Tenant.sync({ force: true })
 
-UFMProfile.belongsTo( Tenant, {foreignKey: "ufm_profile_primary_tenant_id", as: "ufm_profile_primary_tenant" });
-UFMProfile.belongsTo( Tenant, {foreignKey: "ufm_profile_secondary_tenant_id", as: "ufm_profile_secondary_tenant" });
+UFMProfile.belongsTo( Tenant, {foreignKey: "ufm_profile_primary_tenant_id", as: "ufm_profile_primary_tenant", onDelete: 'RESTRICT' });
+UFMProfile.belongsTo( Tenant, {foreignKey: "ufm_profile_secondary_tenant_id", as: "ufm_profile_secondary_tenant", onDelete: 'RESTRICT' });
 
 
 Tenant.belongsTo( Taxonomy, { foreignKey: "tenant_environment_id", as: "tenant_environment"});

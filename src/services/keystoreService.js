@@ -46,20 +46,20 @@ const getKeyStoreValues = async (tenantOneId, tenantTwoId, isCalledFromAPI = fal
    
     } catch(error) {
         console.log('Error in controller: getKeyStoreValues: ', error);
-        return null;
+        return error.message;
     }
 } 
 const getKeyStoreValuesForTenants = async (req, res) => {
     const  {tenantOneId, tenantTwoId } = req.params;
     let isCalledFromAPI = true;// This flag is needed so that we could change  response for fn:getKeyStoreValues
     let mainResponseArray = await getKeyStoreValues(tenantOneId, tenantTwoId, isCalledFromAPI);
-    if (mainResponseArray === null) {
+    if (typeof mainResponseArray === "string") {
         return sendResponse(
             res, // response object
             false, // success
             HttpStatusCode.InternalServerError, // statusCode
             responseObject.INTERNAL_SERVER_ERROR, // status type
-            `Internal Server Error: in updating a git record.`, // message
+            `Internal Server Error: ${mainResponseArray}`, // message
             {}
         );
     }
@@ -169,7 +169,10 @@ const copyCertificates = async (req, res) => {
                     const updatedResponse = await axiosInstanceTenantTwo.put(targetUrl, inputCertificate);
                     if (updatedResponse) {
                         console.log(`\nDone for Hexalias: ${keystoreObj.Hexalias}`);
-                        successArray.push({ hexAlias: keystoreObj.Hexalias })
+                        successArray.push({ 
+                            hexAlias: keystoreObj.Hexalias,
+                            alias: keystoreObj.Alias
+                         })
                         
                         await UFMSyncDetail.create({
                             ufm_sync_header_id: newUFMSyncHeader.ufm_sync_header_id,
@@ -198,7 +201,11 @@ const copyCertificates = async (req, res) => {
                     }
                 } catch (err) {
                     console.log('----------------Err: for hexalias', keystoreObj.Hexalias, err.message);
-                    errorKeysValue.push({ hexalias: keystoreObj.Hexalias, errMsg: err.message})
+                    errorKeysValue.push({ 
+                        hexalias: keystoreObj.Hexalias, 
+                        alias: keystoreObj.Alias,
+                        errMsg: err.message
+                    })
 
                 }
                
@@ -229,7 +236,7 @@ const copyCertificates = async (req, res) => {
             false, // success
             HttpStatusCode.InternalServerError, // statusCode
             responseObject.INTERNAL_SERVER_ERROR, // status type
-            `Internal Server Error: in copying certificates.`, // message
+            `Internal Server Error: ${error.message}`, // message
             {}
         );
         // return res.status(500).json({ error: `Internal Server Error: ${error.message}`})

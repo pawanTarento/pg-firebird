@@ -6,11 +6,12 @@ const routeLoader = require("./src/routeLoader");
 const nodeCron = require("node-cron");
 const {processFailoverJob} = require("./src/cron/failover");
 const { ensureSchema } = require('./initializeTables');
+const { schemaName } = require("./src/constants/schemaName");
   
   // Higher-level error handling
   (async () => {
     try {
-      await ensureSchema('schemaone');
+      // await ensureSchema(schemaName);
     } catch (error) {
       console.error('\nFailed to ensure schema:', error); // rethrow is handled in this IIFE
       console.log('\nTry creating schema manually first');

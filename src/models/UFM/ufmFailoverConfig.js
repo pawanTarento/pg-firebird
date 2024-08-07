@@ -1,5 +1,6 @@
 const { DataTypes, Model } = require('sequelize');
 const sequelize = require('../../dbconfig/config');
+const { schemaName } = require('../../constants/schemaName');
 
 class UFMFailoverConfig extends Model {}
 
@@ -132,6 +133,7 @@ UFMFailoverConfig.init({
     },
 }, {
     sequelize,
+    // schema: schemaName,
     modelName: 'UFMFailoverConfig',
     tableName: 'ufm_failover_config',
     createdAt: 'config_timestamp', 

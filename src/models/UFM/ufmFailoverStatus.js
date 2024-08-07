@@ -1,4 +1,5 @@
 const { DataTypes, Model } = require('sequelize');
+const { schemaName } = require('../../constants/schemaName');
 
 // This table is to store the state of a failover process which was running for the last time
 class UFMFailoverStatus extends Model {}
@@ -23,6 +24,7 @@ UFMFailoverStatus.init({
 
 }, {
     sequelize,
+    // schema: schemaName,
     modelName: 'UFMFailoverStatus',
     tableName: 'ufm_failover_status',
     updatedAt: 'modified_on', 

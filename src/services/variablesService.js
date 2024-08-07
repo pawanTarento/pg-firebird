@@ -57,7 +57,6 @@ const getAllVariablesInfo = async (ufmProfileId,componentTypeId, isCalledFromApi
 
         async function extractVariableValues(variableObj, axiosInstance) {
             try {
-                console.log('\nVariable Obj', variableObj)
                 const url = `/api/v1/Variables(VariableName='${variableObj.VariableName}',IntegrationFlow='${variableObj.IntegrationFlow}')/$value`;
             
                 const response = await axiosInstance.get(url);
@@ -106,6 +105,7 @@ const getAllVariablesInfo = async (ufmProfileId,componentTypeId, isCalledFromApi
         let tenantOneVariables = variablesTenantOneResponse.data.d.results;
         let tenantTwoVariables = variablesTenantTwoResponse.data.d.results;
 
+        // extracting only global variables from the result of api response
         tenantOneVariables = tenantOneVariables.filter( item => item.Visibility === 'Global');
         tenantTwoVariables = tenantTwoVariables.filter( item => item.Visibility === 'Global');
 
@@ -151,8 +151,8 @@ const getAllVariables = async (req, res) => {
         return sendResponse(
             res, // response object
             false, // success
-            HttpStatusCode.NotFound, // statusCode
-            responseObject.RECORD_NOT_FOUND, // status type
+            HttpStatusCode.InternalServerError, // statusCode
+            responseObject.INTERNAL_SERVER_ERROR, // status type
             mainResponse, // message contained in mainResponse
             {}
         );
@@ -240,6 +240,9 @@ const copyVariablesFromSourceToTarget = async (req, res) => {
         token: tenantOneBearerToken
     });
 
+  // since in the list call we are having global variables extracted, only the global variables
+  // would be copied in this function copyVariablesFromSourceToTarget
+  
     let isCalledFromApi = false; // because we need values only from the function getAllVariablesInfo
     let allVariables = await getAllVariablesInfo(ufm_profile_id, component_type_id, isCalledFromApi);
     let variablesFromTenantOne = allVariables[0].tenantOneVariables;
@@ -247,7 +250,6 @@ const copyVariablesFromSourceToTarget = async (req, res) => {
     const notCopiedVariables = [];
 
     async function processVariable(variableObj) {
-        console.log('\nvariable obj: ', variableObj)
         try {
           const url = `/api/v1/Variables(VariableName='${variableObj.VariableName}',IntegrationFlow='${variableObj.IntegrationFlow}')/$value`;
           console.log('URL:', url);
@@ -281,22 +283,49 @@ const copyVariablesFromSourceToTarget = async (req, res) => {
             if (key && value) acc[key.trim()] = value.trim();
             return acc;
           }, {});
+          console.log('\nVariables: ', variables)    
       
           // if variable value is undefined, assign it an empty string
-          const variableValue = variables[variableObj.VariableName] || '';
+          let variableValue = variables[variableObj.VariableName] || '';
+          console.log('Variable Value before: ', variableValue);
+          //Sinc the data in the zip file obtained has one backslash initially, but it retains two backslash
+          //#Wed Jul 31 11:39:54 UTC 2024
+          // SAP_MplCorrelationId=AGaqIjcb38UjYjJf1vCiMCa8hUrm
+          // test_variable_002=0\\12345
+          // SAP_PregeneratedMplid=AGaqIjdsYNT5VPBjFzVFcDkPm8yZ
+
+          // therefore we are replacing the \\ with \ using the regex down below
+          variableValue = variableValue.replace(/\\\\/g,'\\');
+          console.log('Variable Value after: ', variableValue);
+
 
           // prepare data for post call using util to Tenant two
-          const inputData = {
-            data: [
-              {
-                VariableName: variableObj.VariableName,
-                VariableValue: variableValue
-              }
-            ]
-          };
+          // let inputData = {
+          //   data: [
+          //     {
+          //       VariableName: variableObj.VariableName,
+          //       VariableValue: variableValue
+          //     }
+          //   ]
+          // };
+
+
+          let inputData = `{
+          "data": [
+            {
+             "VariableName": "${variableObj.VariableName}",
+             "VariableValue": "${variableValue}"           
+            }
+          ]
+          }`;
+
+
+          console.log('Variable inputData: ', inputData);
+          console.log('Variable parsed: ', JSON.parse(inputData));
+
       
           // make a post call to our util endpoint on tenant two to post the variable
-          const setVariable = await axiosInstanceUtilTenantTwo.post('http/Util/SetVariable', inputData);
+          const setVariable = await axiosInstanceUtilTenantTwo.post('http/Util/SetVariable', JSON.parse(inputData));
       
           if (setVariable) {
             console.log('Variable set in tenant two using iflow for', variableObj.VariableName);
@@ -331,7 +360,7 @@ const copyVariablesFromSourceToTarget = async (req, res) => {
             false, // success
             HttpStatusCode.InternalServerError, // statusCode
             responseObject.INTERNAL_SERVER_ERROR, // status type
-            `Internal Server Error: in copying global variables.`, // message
+            `${error.message}`, // message
             {}
         );
         // return res.status(500).json({ error: `Internal Server Error: ${error.message}`})

@@ -5,7 +5,7 @@ const integrationPackage = require('../controllers/integrationPackagesController
 router.route('/:tenantId')
     .get(integrationPackage.getAllPackagesList);
 
-router.route("/sync/:tenantOneId/:tenantTwoId")
+router.route("/sync/:tenantOneId/:tenantTwoId/:profileId")
     .get(integrationPackage.getAllPackagesWithArtifactsInformation);
 
 router.route("/clone")

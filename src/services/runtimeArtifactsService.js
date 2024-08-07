@@ -489,7 +489,7 @@ const getFailoverStatusForTenants = async (req,res) => {
         let { ufmProfileId } = req.params;
         ufmProfileId = Number(ufmProfileId);
 
-
+        
         // supersede everything --> disable both buttons -> if anything is running/scheduled
         let failoverArtifacts = [];
         let whereConditionSupersedingCase = {
@@ -545,7 +545,7 @@ const getFailoverStatusForTenants = async (req,res) => {
             responseMessage, // message
             data
         );
-        }
+        } // retain this superseding condition
 
             
        const ufmRecord = await UFMProfile.findOne({
@@ -553,6 +553,9 @@ const getFailoverStatusForTenants = async (req,res) => {
             ufm_profile_id : ufmProfileId
         }
        })
+       
+    //   let answer = await getRealtimeArtifactDeploymentStatus(ufmRecord);
+    //   return res.status(200).json({ data: answer} );
 
        if (!ufmRecord) {
         responseMessage = `UFM profile id: ${ufmProfileId} does not exist`;
@@ -697,6 +700,108 @@ const getFailoverStatusForTenants = async (req,res) => {
         );
     }
 
+}
+
+async function getRealtimeArtifactDeploymentStatus (ufmProfileResponse) {
+
+    try {
+        const [
+            tenantOneBearerToken, tenantTwoBearerToken,
+            tenantOneDbResponse, tenantTwoDbResponse 
+       ] = await getBearerTokenForTenants(
+           ufmProfileResponse.ufm_profile_primary_tenant_id, 
+           ufmProfileResponse.ufm_profile_secondary_tenant_id);
+       
+       const axiosInstanceTenantOne = axiosInstance({
+           url: tenantOneDbResponse.tenant_host_url,
+           token: tenantOneBearerToken
+       });
+   
+       const axiosInstanceTenantTwo = axiosInstance({
+           url: tenantTwoDbResponse.tenant_host_url,
+           token: tenantTwoBearerToken
+       });
+
+       const ufmFailoverConfigStateResponse = await UFMFailoverConfigState.findOne({
+            where: {
+                ufm_profile_id: ufmProfileResponse.ufm_profile_id,
+                is_last_record: true,
+            }
+       });
+
+       if (!ufmFailoverConfigStateResponse) {
+        throw Error('No config state saved for the ufm profile id');
+       }
+
+       const ufmFailoverConfigResponse = await UFMFailoverConfig.findAll({
+        where:  {
+            config_state_id: ufmFailoverConfigStateResponse.config_state_id,
+            ufm_profile_id: ufmProfileResponse.ufm_profile_id,
+            config_component_row_select: true,
+            config_component_type: 'IntegrationDesigntimeArtifacts'
+        }
+       })
+
+       if (!ufmFailoverConfigResponse) {
+        throw Error('No config is saved for the config_state_id');
+       }
+
+       const dataArray = await Promise.all(ufmFailoverConfigResponse.map(async (ufmConfigItem) => {
+        const artifactUrl = `/api/v1/IntegrationRuntimeArtifacts('${ufmConfigItem.config_component_id}')`;
+
+        const data = {
+            config_id: null,  // since we are trying to send realtime data, it would be null
+            failover_process_id: null, // since we are trying to send realtime data, it would be null
+            config_package_id: ufmConfigItem.config_package_id,
+            config_package_name: ufmConfigItem.config_package_name,
+            config_component_id: ufmConfigItem.config_component_id,
+            config_component_name: ufmConfigItem.config_component_name,
+            config_component_type: ufmConfigItem.config_component_type,
+            config_component_position: ufmConfigItem.config_component_position,
+            config_component_dt_version: ufmConfigItem.config_component_dt_version,
+        };
+
+        const [primaryData, secondaryData] = await Promise.all([
+            getDeploymentStatus(axiosInstanceTenantOne, artifactUrl, 'primary_tenant'),
+            getDeploymentStatus(axiosInstanceTenantTwo, artifactUrl, 'secondary_tenant')
+        ]);
+
+        return { ...data, ...primaryData, ...secondaryData };
+    }));
+       
+    return dataArray;
+
+    } catch(error) {
+        console.log('\nError in function getRealtimeArtifactDeploymentStatus: ', error.message)
+        return [];
+    }
+}
+
+async function getDeploymentStatus(axiosInstance, artifactUrl, tenantType) {
+    const data = {
+        [`${tenantType}_runtime_status`]: null,
+        [`${tenantType}_runtime_error`]: null,
+        [`${tenantType}_runtime_started_on`]: null,
+        [`${tenantType}_runtime_completed_on`]: null,
+        [`${tenantType}_runtime_status_last_updated_on`]: null
+    };
+
+    try {
+        const response = await axiosInstance.get(artifactUrl);
+        if (response && response.data.d.Status === "STARTED") {
+            data[`${tenantType}_runtime_status`] = "DEPLOYED";
+        } else {
+            data[`${tenantType}_runtime_status`] = "DEPLOYMENT_ERROR";
+        }
+    } catch (error) {
+        if (error?.response?.status === 404) {
+            data[`${tenantType}_runtime_status`] = "UNDEPLOYED";
+        } else {
+            data[`${tenantType}_runtime_error`] = error.message.substring(0, 1024);
+        }
+    }
+
+    return data;
 }
 
 function transformData (data) {

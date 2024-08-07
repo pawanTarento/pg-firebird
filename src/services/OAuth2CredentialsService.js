@@ -28,6 +28,10 @@ const getOAuth2Credentials = async ( req, res ) => {
         ] = await getBearerTokenForTenants(
             ufmProfileResponse.ufm_profile_primary_tenant_id, 
             ufmProfileResponse.ufm_profile_secondary_tenant_id);
+
+        // if (!tenantOneBearerToken || !tenantTwoBearerToken) {
+        //     return res.status(500).json({error: 'Error in getting bearer token for one of the tenant(s)'})
+        // }
         
         const axiosInstanceTenantOne = axiosInstance({
             url: tenantOneDbResponse.tenant_host_url,
@@ -111,7 +115,7 @@ const getOAuth2Credentials = async ( req, res ) => {
             false, // success
             HttpStatusCode.InternalServerError, // statusCode
             responseObject.INTERNAL_SERVER_ERROR, // status type
-            `Internal Server Error in listing OAuth2 Credentials: ${err.message}`, // message
+            `Internal Server Error in listing OAuth2 Credentials: ${error.message}`, // message
             {}
         );
         // return res.status(500).json({ error: `Internal server error: ${err.message}`}) 
@@ -258,7 +262,7 @@ const copyOAuth2CredentialsInfo = async( req, res) => {
         } catch(err){
             await transaction.rollback();
             console.log('Error in service post user credential: ', err);
-            return res.status(500).json({error:`Internal server Error ${err.message}`})
+            return res.status(500).json({error:`Internal server Error: ${err.message}`})
         }
     
     }   

@@ -16,8 +16,6 @@
     const UFMSyncHeader = require("./src/models/UFM/ufmSyncHeader");
     const UFMFailoverProcess = require("./src/models/UFM/ufmFailoverProcess");
     const UFMFailoverProcessComponent = require("./src/models/UFM/ufmFailoverProcessComponent");
-    const bodyParser = require("body-parser");
-    const timeout = require('connect-timeout'); // Require the connect-timeout package
     const UFMBackupDetail = require("./src/models/ufmBackupDetail");
     const UFMBackupHeader = require("./src/models/ufmBackupHeader");
     const { taxonomyData } = require("./taxonomyData");
@@ -42,19 +40,19 @@ async function syncModels() {
 
     try {
 
-        await UserModel.sync({ force: false});
-        await Tenant.sync({ force: false, alter: true});
-        await GitRepository.sync({ force: false});
-        await UFMProfile.sync({ force: false});
-        await UFMFailoverConfigState.sync({ force: false});
-        await UFMFailoverConfig.sync({ force: false});
+        await UserModel.sync({ force: false });
+        await Tenant.sync({ force: false });
+        await GitRepository.sync({ force: false });
+        await UFMProfile.sync({ force: false });
+        await UFMFailoverConfigState.sync({ force: false });
+        await UFMFailoverConfig.sync( { force: false });
         await UFMProfileRuntimeMap.sync({ force: false});
-        await UFMSyncDetail.sync({ force: false});
-        await UFMSyncHeader.sync({ force: false});
-        await UFMFailoverProcess.sync({ force: false});
-        await UFMFailoverProcessComponent.sync({ force: false});
-        await UFMBackupHeader.sync({ force: false});
-        await UFMBackupDetail.sync({ force: false});
+        await UFMSyncDetail.sync({ force: false });
+        await UFMSyncHeader.sync({ force: false });
+        await UFMFailoverProcess.sync({ force: false });
+        await UFMFailoverProcessComponent.sync({ force: false });
+        await UFMBackupHeader.sync({ force: false });
+        await UFMBackupDetail.sync({ force: false });
 
     } catch (error) {
         console.error('Error syncing models:', error);

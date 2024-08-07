@@ -2,6 +2,7 @@ const { DataTypes, Model } = require('sequelize');
 const sequelize = require('../../dbconfig/config');
 const Taxonomy = require('../taxonomy');
 const UFMFailoverProcessComponent = require('./ufmFailoverProcessComponent');
+const { schemaName } = require('../../constants/schemaName');
 
 class UFMFailoverProcess extends Model {}
 
@@ -58,6 +59,7 @@ UFMFailoverProcess.init({
     }
 }, {
     sequelize,
+    // schema: schemaName,
     modelName: 'UFMFailoverProcess',
     tableName: 'ufm_failover_process',
     createdAt: 'created_on', 

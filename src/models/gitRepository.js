@@ -2,6 +2,7 @@ const { DataTypes, Model } = require('sequelize');
 const sequelize = require('../dbconfig/config');
 const UFMProfile = require('./ufmProfile');
 const Taxonomy = require('./taxonomy');
+const { schemaName } = require('../constants/schemaName');
 
 class GitRepository extends Model {}
 
@@ -75,6 +76,7 @@ GitRepository.init({
     }
 }, {
     sequelize,
+    // schema: schemaName,
     modelName: 'git_repository',
     tableName: 'git_repository',
     createdAt: 'created_on', 
@@ -93,7 +95,7 @@ GitRepository.init({
 
 module.exports = GitRepository;
 
-UFMProfile.belongsTo( GitRepository, { foreignKey: "ufm_profile_gr_id"});
+UFMProfile.belongsTo( GitRepository, { foreignKey: "ufm_profile_gr_id", onDelete: 'RESTRICT' });
 
 GitRepository.belongsTo( Taxonomy, { foreignKey: "gr_environment_id", as: "git_environment"});
 GitRepository.belongsTo( Taxonomy, { foreignKey: "gr_state_id", as : "git_state"});

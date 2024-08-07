@@ -1,4 +1,4 @@
-const schemaName = "schemaone";
+const schemaName = "firebird";
 
 module.exports = {
     schemaName

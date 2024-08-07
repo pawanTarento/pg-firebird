@@ -54,7 +54,8 @@ const getAllTenants = async (req, res) => {
               "display_name"
             ]
           }
-        ]
+        ],
+        order: [['modified_on', 'DESC']]
     })
 
     if (!response) {
@@ -156,8 +157,9 @@ const getTenantById = async (req, res, tenantId) => {
 }
 
 const removeTenant = async (req, res, tenantId) => {
+  let tenant;
   try {
-    const tenant = await Tenant.findByPk(tenantId);
+     tenant = await Tenant.findByPk(tenantId);
     if (!tenant) {
       return sendResponse(
         res, // response object
@@ -190,7 +192,7 @@ const removeTenant = async (req, res, tenantId) => {
         if (error.name === "SequelizeForeignKeyConstraintError") {
             errorMessage = 'Tenant id in use already in other table(s)';
         } else if (error.name === "SequelizeUniqueConstraintError") {
-            errorMessage = 'git id must be unique';
+            errorMessage = 'Tenant id must be unique';
         } else {
             errorMessage = 'An unexpected Sequelize error occurred';
         }
@@ -203,7 +205,7 @@ const removeTenant = async (req, res, tenantId) => {
       false, // success
       HttpStatusCode.InternalServerError, // statusCode
       responseObject.INTERNAL_SERVER_ERROR, // status type
-      `For deleting tenant id:${tenantId}. ${errorMessage} `, // message
+      `For deleting tenant :${tenant.tenant_name}. ${errorMessage} `, // message
       {}
   );
   }

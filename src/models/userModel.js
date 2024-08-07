@@ -2,6 +2,7 @@
 const { DataTypes, Model } = require('sequelize');
 const sequelize = require('../dbconfig/config');
 const Taxonomy = require('./taxonomy');
+const { schemaName } = require('../constants/schemaName');
 
 class UserModel extends Model {}
 
@@ -67,15 +68,13 @@ UserModel.init({
         allowNull: true,
         defaultValue: () => Math.floor(Date.now() / 1000)
     },
-    last_logged_on: {// keep it, but not in use
+    last_logged_on: {
         type: DataTypes.BIGINT,
-        allowNull: true,
-        defaultValue: null
+        allowNull: true
     },
     role: {
         type: DataTypes.STRING(120),
-        allowNull: true,
-        defaultValue: null
+        allowNull: true
     },
     timezone_id: {
         type: DataTypes.INTEGER,
@@ -83,6 +82,7 @@ UserModel.init({
     }
 }, {
     sequelize,
+    // schema: schemaName,
     modelName: 'UserMaster',
     tableName: 'user',
     createdAt: 'created_on', 
@@ -102,6 +102,5 @@ UserModel.init({
 
 module.exports = UserModel;
 
-UserModel.sync({ force: false });
 
 UserModel.belongsTo( Taxonomy, { foreignKey: "timezone_id", as: "timezone" });

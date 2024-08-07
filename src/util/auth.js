@@ -96,6 +96,7 @@ async function getBearerTokenForTenants (tenantOneId, tenantTwoId) {
         return [tenantOneBearerToken, tenantTwoBearerToken, tenantOneDbResponse, tenantTwoDbResponse ]
     } catch(error) {
         console.log('Fn: getBearerTokenForTenants, error in getting Authorization bearer token: ', error );
+        throw Error('Error in getting bearer token for the tenant(s)')
     }
    
 }

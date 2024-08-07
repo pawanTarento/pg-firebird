@@ -21,7 +21,8 @@ const getAllGitRecords = async (req, res) => {
           model: Taxonomy,
           as: "git_state"
         }
-      ]
+      ],
+      order:[['modified_on', 'DESC']]
     })
 
     if (!response) {
@@ -89,8 +90,9 @@ const getGitRecordById = async (req, res, grId) => {
 }
 
 const removeGitRecord = async (req, res, grId) => {
+  let gitRecord ;
   try {
-    const gitRecord = await GitRepository.findByPk(grId);
+     gitRecord = await GitRepository.findByPk(grId);
     if (!gitRecord) {
       // res.status(404).json({ error: 'Git Record not found' });
       return sendResponse(
@@ -137,7 +139,7 @@ const removeGitRecord = async (req, res, grId) => {
       false, // success
       HttpStatusCode.InternalServerError, // statusCode
       responseObject.INTERNAL_SERVER_ERROR, // status type
-      `For deleting git record id:${grId}. ${errorMessage} `, // message
+      `For deleting git repository:${gitRecord.gr_name}. ${errorMessage} `, // message
       {}
   );
   }
